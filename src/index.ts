@@ -210,7 +210,7 @@ async function safeEditOrSend(ctx: any, text: string, keyboard?: InlineKeyboard,
 }
 
 function getMainMenuKeyboard() {
-  const superMapUrl = "https://jasontan89.github.io/NewsTelegrambot/super-map.html";
+  const superMapUrl = "https://jasontan89.github.io/sg-transport-kaki-bot/super-map.html";
   return new InlineKeyboard()
     .webApp("🗺️ All-in-One Transit Super-Map", superMapUrl).row()
     .text("🚌 Public Transport", "cat_transport")
@@ -254,7 +254,7 @@ function getExploreMenuKeyboard() {
 }
 
 function getERPMenuKeyboard() {
-  const erpMapUrl = "https://jasontan89.github.io/NewsTelegrambot/erp-map.html";
+  const erpMapUrl = "https://jasontan89.github.io/sg-transport-kaki-bot/erp-map.html";
   return new InlineKeyboard()
     .webApp("🗺️ Launch Interactive ERP Gantry Map", erpMapUrl).row()
     .text("🛣️ CTE (Central)", "erp_corr_CTE")
@@ -378,7 +378,7 @@ function getTrafficMenuKeyboard() {
 
 function getIncidentsMenuKeyboard() {
   return new InlineKeyboard()
-    .webApp("🗺️ Open Live Incidents Radar Map", "https://jasontan89.github.io/NewsTelegrambot/incidents-map.html").row()
+    .webApp("🗺️ Open Live Incidents Radar Map", "https://jasontan89.github.io/sg-transport-kaki-bot/incidents-map.html").row()
     .text("💥 Accidents & Breakdowns", "inc_type_critical").row()
     .text("🚗 Heavy Traffic & Jams", "inc_type_traffic").row()
     .text("🚧 Roadworks & Obstacles", "inc_type_roadworks").row()
@@ -814,7 +814,7 @@ async function showTaxiLocator(ctx: any, messageId: number | null, queryOrCoords
 
     const keyboard = new InlineKeyboard();
 
-    const webAppUrl = `https://jasontan89.github.io/NewsTelegrambot/taxi-map.html?lat=${targetLat}&lon=${targetLon}&name=${encodeURIComponent(locationTitle)}`;
+    const webAppUrl = `https://jasontan89.github.io/sg-transport-kaki-bot/taxi-map.html?lat=${targetLat}&lon=${targetLon}&name=${encodeURIComponent(locationTitle)}`;
     keyboard.webApp("🗺️ Open Live Taxi Radar Map", webAppUrl).row();
 
     if (stands && stands.length > 0) {
@@ -1185,7 +1185,7 @@ async function showERPRates(
     const keyboard = new InlineKeyboard();
 
     // Launch Interactive WebApp Map Button
-    const erpMapUrl = `https://jasontan89.github.io/NewsTelegrambot/erp-map.html?corridor=${encodeURIComponent(cleanQ)}&vehicle=${vehicleType}`;
+    const erpMapUrl = `https://jasontan89.github.io/sg-transport-kaki-bot/erp-map.html?corridor=${encodeURIComponent(cleanQ)}&vehicle=${vehicleType}`;
     keyboard.webApp("🗺️ Open Interactive ERP Gantry Map", erpMapUrl).row();
 
     // Vehicle Switcher Row
@@ -1280,7 +1280,7 @@ async function showERPGantryDetails(
 
     const keyboard = new InlineKeyboard();
 
-    const erpMapUrl = `https://jasontan89.github.io/NewsTelegrambot/erp-map.html?corridor=${encodeURIComponent(gantry.corridor)}&vehicle=${vehicleType}`;
+    const erpMapUrl = `https://jasontan89.github.io/sg-transport-kaki-bot/erp-map.html?corridor=${encodeURIComponent(gantry.corridor)}&vehicle=${vehicleType}`;
     keyboard.webApp("🗺️ Open Interactive ERP Gantry Map", erpMapUrl).row();
 
     if (gantry.lat && gantry.lon) {
@@ -1965,7 +1965,7 @@ async function showIncidents(ctx: any, messageId: number | null, filterType: str
       keyboard.row();
     }
 
-    keyboard.webApp("🗺️ View on Interactive Map", "https://jasontan89.github.io/NewsTelegrambot/incidents-map.html").row();
+    keyboard.webApp("🗺️ View on Interactive Map", "https://jasontan89.github.io/sg-transport-kaki-bot/incidents-map.html").row();
     keyboard.text("🔄 Refresh", `inc_p_${filterType}__${kwParam}__${currentPage}`).row();
     keyboard.text("🔙 Back to Incidents Menu", "menu_incidents");
 
@@ -2478,7 +2478,7 @@ bot.command(["alightstatus", "alarmstatus"], async (ctx) => {
 });
 
 bot.command(["supermap", "map", "transitmap"], async (ctx) => {
-  const superMapUrl = "https://jasontan89.github.io/NewsTelegrambot/super-map.html";
+  const superMapUrl = "https://jasontan89.github.io/sg-transport-kaki-bot/super-map.html";
   const keyboard = new InlineKeyboard()
     .webApp("🗺️ Launch All-in-One Super-Map", superMapUrl).row()
     .text("🔙 Back to Main Menu", "menu_main");
@@ -2614,7 +2614,7 @@ bot.on("message:location", async (ctx) => {
   let text = `${alarmBanner}📍 <b>Consolidated Transport Results</b>\n\n`;
   const keyboard = new InlineKeyboard();
 
-  const webAppUrl = `https://jasontan89.github.io/NewsTelegrambot/taxi-map.html?lat=${latitude}&lon=${longitude}&name=${encodeURIComponent("Your Current Location")}`;
+  const webAppUrl = `https://jasontan89.github.io/sg-transport-kaki-bot/taxi-map.html?lat=${latitude}&lon=${longitude}&name=${encodeURIComponent("Your Current Location")}`;
   keyboard.webApp("🗺️ Open Live Taxi Radar Map", webAppUrl).row();
 
   if (stops && stops.length > 0) {
