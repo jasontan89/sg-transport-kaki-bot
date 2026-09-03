@@ -1,0 +1,23 @@
+{
+  "name": "sg-transport-kaki-bot",
+  "version": "1.0.0",
+  "description": "???? SG Transport Kaki ? Comprehensive Singapore Public Transport & Driving Companion Telegram Bot with WebApp Mini Apps",
+  "main": "src/index.ts",
+  "scripts": {
+    "test": "node --use-system-ca scripts/test_e2e.js",
+    "deploy": "node --use-system-ca scripts/deploy.js",
+    "setup-commands": "node --use-system-ca scripts/setup_commands.js"
+  },
+  "keywords": [
+    "telegram-bot",
+    "singapore-transport",
+    "lta-datamall",
+    "supabase-edge-functions",
+    "grammy",
+    "erp-rates",
+    "mrt-crowd",
+    "traffic-cameras"
+  ],
+  "author": "Jason Tan",
+  "license": "MIT"
+}

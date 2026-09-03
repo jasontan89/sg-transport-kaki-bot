@@ -1,0 +1,17 @@
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Temporary and deployment files
+dist/
+tmp/
+deploy_payload*.json
+*.log
+.DS_Store
+Thumbs.db
