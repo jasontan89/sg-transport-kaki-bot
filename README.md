@@ -5,7 +5,7 @@
 
 [![GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-Live%20WebApps-success?logo=github)](https://jasontan89.github.io/sg-transport-kaki-bot/super-map.html)
 [![Supabase Edge Functions](https://img.shields.io/badge/Hosted%20on-Supabase%20Edge%20Functions-3ECF8E?logo=supabase)](https://supabase.com)
-[![Telegram Bot](https://img.shields.io/badge/Telegram-Bot-2CA5E0?logo=telegram)](https://t.me/SGTransportKakiBot)
+[![Telegram Bot](https://img.shields.io/badge/Telegram-Bot-2CA5E0?logo=telegram)](https://t.me/LTA_Mall_Bot)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ---
