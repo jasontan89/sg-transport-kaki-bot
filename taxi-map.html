@@ -3,8 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>SG Taxi Radar 🇸🇬</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
@@ -58,6 +61,94 @@
     }
     .badge.loading {
       background: #8957e5;
+    }
+
+    .mode-bar {
+      position: absolute;
+      top: 68px;
+      left: 12px;
+      right: 12px;
+      z-index: 1000;
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+      scrollbar-width: none;
+    }
+    .mode-bar::-webkit-scrollbar { display: none; }
+    .mode-btn {
+      background: rgba(24, 28, 36, 0.94);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #c9d1d9;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: 16px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    .mode-btn.active {
+      background: #e3b341;
+      border-color: #f1c40f;
+      color: #0f131a;
+      font-weight: 700;
+    }
+
+    .custom-cluster-taxi {
+      background: rgba(227, 179, 65, 0.28);
+      border: 2px solid #e3b341;
+      border-radius: 50%;
+      color: #ffd33d;
+      font-weight: 800;
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 14px rgba(227, 179, 65, 0.5);
+      backdrop-filter: blur(4px);
+    }
+
+    .nearest-taxi-banner {
+      display: none;
+      position: absolute;
+      bottom: 80px;
+      left: 12px;
+      right: 12px;
+      z-index: 1000;
+      background: rgba(24, 28, 36, 0.95);
+      border: 1.5px solid rgba(227, 179, 65, 0.6);
+      border-radius: 12px;
+      padding: 10px 14px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.65);
+      backdrop-filter: blur(8px);
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes slideUp {
+      from { transform: translateY(16px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    .nc-content { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .nc-icon { font-size: 24px; flex-shrink: 0; }
+    .nc-details { display: flex; flex-direction: column; min-width: 0; }
+    .nc-title { font-size: 12px; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .nc-title b { color: #e3b341; }
+    .nc-sub { font-size: 11px; color: #8b949e; }
+    .nc-btn {
+      background: #e3b341;
+      color: #0f131a;
+      border: none;
+      font-weight: 700;
+      font-size: 11px;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      flex-shrink: 0;
     }
 
     .action-controls {
@@ -208,7 +299,25 @@
     <div id="taxi-badge" class="badge">Scanning...</div>
   </div>
 
+  <div class="mode-bar">
+    <button class="mode-btn active" id="mode-all" onclick="setTaxiMode('all')">&#127760; All Cabs</button>
+    <button class="mode-btn" id="mode-near" onclick="setTaxiMode('near')">&#127919; Near Me (&lt;1km)</button>
+    <button class="mode-btn" id="mode-stands" onclick="setTaxiMode('stands')">&#128662; Stands Only</button>
+  </div>
+
   <div id="map"></div>
+
+  <!-- Nearest Cab Banner -->
+  <div id="nearest-taxi-banner" class="nearest-taxi-banner">
+    <div class="nc-content">
+      <div class="nc-icon">&#128661;</div>
+      <div class="nc-details">
+        <div class="nc-title">Nearest Vacant Cab: <b id="nc-dist">--</b></div>
+        <div class="nc-sub"><span id="nc-walk">--</span> &#8226; Live on road</div>
+      </div>
+    </div>
+    <button class="nc-btn" onclick="focusNearestTaxi()">Target &#127919;</button>
+  </div>
 
   <div class="legend-bar">
     <div class="legend-item"><span>🔵</span> Searched Location</div>
@@ -221,7 +330,6 @@
     <button class="action-btn" id="btn-locate" title="Center My Location">🎯</button>
   </div>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
     if (window.Telegram && window.Telegram.WebApp) {
       window.Telegram.WebApp.ready();
@@ -248,9 +356,45 @@
     }).addTo(map);
 
     const userLayer = L.layerGroup().addTo(map);
-    const taxiLayer = L.layerGroup().addTo(map);
     const standLayer = L.layerGroup().addTo(map);
     const rangeLayer = L.layerGroup().addTo(map);
+
+    // MarkerCluster for Live Taxis (smooth 60fps clustering)
+    const taxiClusterLayer = L.markerClusterGroup({
+      showCoverageOnHover: false,
+      maxClusterRadius: 40,
+      spiderfyOnMaxZoom: true,
+      removeOutsideVisibleBounds: true,
+      animate: true,
+      iconCreateFunction: function(cluster) {
+        const count = cluster.getChildCount();
+        let size = 28;
+        if (count > 25) size = 34;
+        if (count > 100) size = 42;
+        return L.divIcon({
+          html: '<div>' + count + '</div>',
+          className: 'custom-cluster-taxi',
+          iconSize: L.point(size, size)
+        });
+      }
+    }).addTo(map);
+
+    let cachedData = null;
+    let currentMode = 'all'; // 'all', 'near', 'stands'
+    let nearestTaxiCoords = null;
+    let nearestTaxiLine = null;
+
+    function setTaxiMode(mode) {
+      currentMode = mode;
+      ['all', 'near', 'stands'].forEach(m => {
+        const b = document.getElementById('mode-' + m);
+        if (b) {
+          if (m === mode) b.classList.add('active');
+          else b.classList.remove('active');
+        }
+      });
+      renderFilteredTaxis();
+    }
 
     function updateCenterPin(lat, lon, title) {
       userLayer.clearLayers();
@@ -302,50 +446,18 @@
       return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     }
 
-    async function loadTaxiData(lat, lon) {
-      const badge = document.getElementById('taxi-badge');
-      badge.textContent = 'Updating...';
-      badge.classList.add('loading');
+    function renderFilteredTaxis() {
+      if (!cachedData) return;
+      taxiClusterLayer.clearLayers();
+      standLayer.clearLayers();
 
-      try {
-        const apiUrl = `https://blcsjvifiytbznwesmyx.supabase.co/functions/v1/lta_bot/api/taxis?lat=${lat}&lon=${lon}`;
-        const res = await fetch(apiUrl);
-        if (!res.ok) throw new Error('API fetch failed');
-        const data = await res.json();
+      const taxis = cachedData.taxis || [];
+      const stands = cachedData.stands || [];
 
-        taxiLayer.clearLayers();
-        standLayer.clearLayers();
-
-        let count500m = 0;
-        let count1km = 0;
-
-        const taxis = data.taxis || [];
-        taxis.forEach(t => {
-          const dist = calculateDistance(lat, lon, t.Latitude, t.Longitude);
-          if (dist <= 500) count500m++;
-          if (dist <= 1000) count1km++;
-
-          const taxiIcon = L.divIcon({
-            className: 'custom-div-icon',
-            html: '<div class="taxi-marker">🚕</div>',
-            iconSize: [28, 28],
-            iconAnchor: [14, 14]
-          });
-
-          const m = L.marker([t.Latitude, t.Longitude], { icon: taxiIcon }).addTo(taxiLayer);
-          m.bindPopup(`
-            <div class="popup-content">
-              <div class="popup-title">🚕 Vacant Taxi</div>
-              <div class="popup-sub">📍 ~${Math.round(dist)}m from center</div>
-              <div style="font-size: 11px; color: #3fb950; font-weight: 600;">Available Now (LTA Live Stream)</div>
-              <a href="https://www.google.com/maps/search/?api=1&query=${t.Latitude},${t.Longitude}" target="_blank" class="btn-nav">🗺️ View in Google Maps</a>
-            </div>
-          `);
-        });
-
-        const stands = data.stands || [];
+      // 1. Render Stands (if mode is 'all' or 'stands')
+      if (currentMode === 'all' || currentMode === 'stands') {
         stands.forEach(s => {
-          const dist = Math.round(calculateDistance(lat, lon, s.latitude, s.longitude));
+          const dist = Math.round(calculateDistance(centerLat, centerLon, s.latitude, s.longitude));
           const standIcon = L.divIcon({
             className: 'custom-div-icon',
             html: '<div class="stand-marker">🚖</div>',
@@ -367,6 +479,86 @@
             </div>
           `);
         });
+      }
+
+      // 2. Render Taxis (if mode is 'all' or 'near')
+      if (currentMode === 'all' || currentMode === 'near') {
+        const markers = [];
+        taxis.forEach(t => {
+          const dist = calculateDistance(centerLat, centerLon, t.Latitude, t.Longitude);
+          if (currentMode === 'near' && dist > 1000) return;
+
+          const taxiIcon = L.divIcon({
+            className: 'custom-div-icon',
+            html: '<div class="taxi-marker">🚕</div>',
+            iconSize: [28, 28],
+            iconAnchor: [14, 14]
+          });
+
+          const m = L.marker([t.Latitude, t.Longitude], { icon: taxiIcon });
+          m.bindPopup(`
+            <div class="popup-content">
+              <div class="popup-title">🚕 Vacant Taxi</div>
+              <div class="popup-sub">📍 ~${Math.round(dist)}m from center</div>
+              <div style="font-size: 11px; color: #3fb950; font-weight: 600;">Available Now (LTA Live Stream)</div>
+              <a href="https://www.google.com/maps/search/?api=1&query=${t.Latitude},${t.Longitude}" target="_blank" class="btn-nav">🗺️ View in Google Maps</a>
+            </div>
+          `);
+          markers.push(m);
+        });
+
+        taxiClusterLayer.addLayers(markers);
+      }
+    }
+
+    async function loadTaxiData(lat, lon) {
+      const badge = document.getElementById('taxi-badge');
+      badge.textContent = 'Updating...';
+      badge.classList.add('loading');
+
+      try {
+        const apiUrl = `https://blcsjvifiytbznwesmyx.supabase.co/functions/v1/lta_bot/api/taxis?lat=${lat}&lon=${lon}`;
+        const res = await fetch(apiUrl);
+        if (!res.ok) throw new Error('API fetch failed');
+        const data = await res.json();
+        cachedData = data;
+
+        renderFilteredTaxis();
+
+        let count500m = 0;
+        let count1km = 0;
+        let closest = null;
+        let minDistance = Infinity;
+
+        const taxis = data.taxis || [];
+        taxis.forEach(t => {
+          const dist = calculateDistance(lat, lon, t.Latitude, t.Longitude);
+          if (dist <= 500) count500m++;
+          if (dist <= 1000) count1km++;
+          if (dist < minDistance) {
+            minDistance = dist;
+            closest = t;
+          }
+        });
+
+        if (closest && minDistance < 5000) {
+          nearestTaxiCoords = [closest.Latitude, closest.Longitude];
+          const distM = Math.round(minDistance);
+          const walkMin = Math.max(1, Math.round(distM / 80));
+
+          const banner = document.getElementById('nearest-taxi-banner');
+          document.getElementById('nc-dist').innerText = '~' + distM + 'm away';
+          document.getElementById('nc-walk').innerText = '~' + walkMin + ' min walk';
+          banner.style.display = 'flex';
+
+          if (nearestTaxiLine) map.removeLayer(nearestTaxiLine);
+          nearestTaxiLine = L.polyline([[lat, lon], nearestTaxiCoords], {
+            color: '#e3b341',
+            weight: 2,
+            dashArray: '6, 6',
+            opacity: 0.9
+          }).addTo(map);
+        }
 
         badge.textContent = `🟢 ${count1km} near (1km) • ${taxis.length} Islandwide`;
         badge.classList.remove('loading');
@@ -376,6 +568,12 @@
         badge.textContent = '⚠️ Offline';
         badge.classList.remove('loading');
       }
+    }
+
+    function focusNearestTaxi() {
+      if (!nearestTaxiCoords) return;
+      if (currentMode === 'stands') setTaxiMode('all');
+      map.flyTo(nearestTaxiCoords, 17, { duration: 1.2 });
     }
 
     loadTaxiData(centerLat, centerLon);

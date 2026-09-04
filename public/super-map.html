@@ -5,7 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>SG Transit Super-Map &#127480;&#127468;</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
@@ -125,8 +128,65 @@
     .pill-btn.erp-pill.active { background: #d29922; border-color: #e3b341; }
     .pill-btn.cam-pill.active { background: #8957e5; border-color: #a371f7; }
     .pill-btn.inc-pill.active { background: #da3633; border-color: #f85149; }
-    .pill-btn.taxi-pill.active { background: #238636; border-color: #2ea043; }
+    .pill-btn.taxi-pill.active { background: #0969da; border-color: #388bfd; }
+    .pill-btn.cabs-pill.active { background: #e3b341; border-color: #f1c40f; color: #0f131a; }
     .pill-btn.ev-pill.active { background: #1f6feb; border-color: #388bfd; }
+
+    /* Cluster Badges */
+    .custom-cluster-cabs {
+      background: rgba(227, 179, 65, 0.28);
+      border: 2px solid #e3b341;
+      border-radius: 50%;
+      color: #ffd33d;
+      font-weight: 800;
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 14px rgba(227, 179, 65, 0.5);
+      backdrop-filter: blur(4px);
+    }
+
+    /* Nearest Cab Floating Banner */
+    .nearest-cab-banner {
+      display: none;
+      position: absolute;
+      bottom: 56px;
+      left: 10px;
+      right: 10px;
+      z-index: 1000;
+      background: rgba(18, 24, 36, 0.95);
+      border: 1.5px solid rgba(227, 179, 65, 0.6);
+      border-radius: 12px;
+      padding: 10px 14px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.65);
+      backdrop-filter: blur(8px);
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes slideUp {
+      from { transform: translateY(16px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    .nc-content { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .nc-icon { font-size: 24px; flex-shrink: 0; }
+    .nc-details { display: flex; flex-direction: column; min-width: 0; }
+    .nc-title { font-size: 12px; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .nc-title b { color: #e3b341; }
+    .nc-sub { font-size: 11px; color: #8b949e; }
+    .nc-btn {
+      background: #e3b341;
+      color: #0f131a;
+      border: none;
+      font-weight: 700;
+      font-size: 11px;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
 
     /* Sub-bar for ERP Vehicle Multiplier */
     .vehicle-bar {
@@ -369,10 +429,11 @@
     <!-- Layer Switcher Pills -->
     <div class="filter-scroll">
       <button class="pill-btn active" id="pill-all" onclick="toggleAllLayers()">&#127760; All Layers</button>
-      <button class="pill-btn erp-pill active" id="pill-erp" onclick="toggleLayer('erp')">&#128179; ERP Gantries</button>
+      <button class="pill-btn erp-pill active" id="pill-erp" onclick="toggleLayer('erp')">&#128179; ERP</button>
       <button class="pill-btn cam-pill active" id="pill-cam" onclick="toggleLayer('cam')">&#128247; Cameras</button>
       <button class="pill-btn inc-pill active" id="pill-inc" onclick="toggleLayer('inc')">&#9888;&#65039; Incidents</button>
-      <button class="pill-btn taxi-pill active" id="pill-taxi" onclick="toggleLayer('taxi')">&#128662; Taxis</button>
+      <button class="pill-btn taxi-pill active" id="pill-taxi" onclick="toggleLayer('taxi')">&#128662; Stands (316)</button>
+      <button class="pill-btn cabs-pill" id="pill-cabs" onclick="toggleLayer('cabs')">&#128661; Live Cabs (<span id="stat-cabs">1000</span>)</button>
       <button class="pill-btn ev-pill active" id="pill-ev" onclick="toggleLayer('ev')">&#9889; EV Hubs</button>
     </div>
 
@@ -386,6 +447,18 @@
 
   <div id="map"></div>
 
+  <!-- Nearest Cab Banner -->
+  <div id="nearest-cab-banner" class="nearest-cab-banner">
+    <div class="nc-content">
+      <div class="nc-icon">&#128661;</div>
+      <div class="nc-details">
+        <div class="nc-title">Nearest Vacant Cab: <b id="nc-dist">--</b></div>
+        <div class="nc-sub"><span id="nc-walk">--</span> &#8226; Live on road</div>
+      </div>
+    </div>
+    <button class="nc-btn" onclick="focusNearestCab()">Target &#127919;</button>
+  </div>
+
   <!-- Floating Action Buttons -->
   <div class="fab-container">
     <div class="fab" onclick="locateUser()" title="Locate Me">&#127919;</div>
@@ -397,7 +470,9 @@
     <div class="stat-item">&#128179; <span id="stat-erp">30</span> Gantries</div>
     <div class="stat-item">&#128247; <span id="stat-cams">8</span> Cams</div>
     <div class="stat-item">&#9888;&#65039; <span id="stat-inc">0</span> Incidents</div>
-    <div class="stat-item">&#9889; <span id="stat-ev">23</span> EV Hubs</div>
+    <div class="stat-item">&#128662; <span id="stat-stands">316</span> Stands</div>
+    <div class="stat-item">&#128661; <span id="stat-cabs-bottom">1000</span> Cabs</div>
+    <div class="stat-item">&#9889; <span id="stat-ev">23</span> EV</div>
   </div>
 
   <script>
@@ -430,13 +505,37 @@
     const incLayerGroup = L.layerGroup().addTo(map);
     const taxiLayerGroup = L.layerGroup().addTo(map);
     const evLayerGroup = L.layerGroup().addTo(map);
+
+    // MarkerCluster for Live Cabs (Sleek clustering & spiderfying)
+    const cabsClusterGroup = L.markerClusterGroup({
+      showCoverageOnHover: false,
+      maxClusterRadius: 42,
+      spiderfyOnMaxZoom: true,
+      removeOutsideVisibleBounds: true,
+      animate: true,
+      iconCreateFunction: function(cluster) {
+        const count = cluster.getChildCount();
+        let size = 28;
+        if (count > 25) size = 34;
+        if (count > 100) size = 42;
+        return L.divIcon({
+          html: '<div>' + count + '</div>',
+          className: 'custom-cluster-cabs',
+          iconSize: L.point(size, size)
+        });
+      }
+    });
+
+    let nearestCabLine = null;
+    let nearestCabCoords = null;
     let userMarker = null;
 
     let activeLayers = {
       erp: true,
       cam: true,
       inc: true,
-      taxi: true,
+      taxi: true,  // Stands (ON by default)
+      cabs: false, // Live Cabs (OFF by default for faster initial loading)
       ev: true
     };
 
@@ -517,6 +616,12 @@
         if (superMapData.erp) document.getElementById('stat-erp').innerText = superMapData.erp.length;
         if (superMapData.cameras) document.getElementById('stat-cams').innerText = superMapData.cameras.length;
         if (superMapData.incidents) document.getElementById('stat-inc').innerText = superMapData.incidents.length;
+        if (superMapData.taxi_stands) document.getElementById('stat-stands').innerText = superMapData.taxi_stands.length;
+        if (superMapData.taxis) {
+          const cCount = superMapData.taxis.length;
+          document.getElementById('stat-cabs').innerText = cCount;
+          document.getElementById('stat-cabs-bottom').innerText = cCount;
+        }
         if (superMapData.ev_hubs) document.getElementById('stat-ev').innerText = superMapData.ev_hubs.length;
 
         renderLayers();
@@ -537,8 +642,16 @@
       if (activeLayers.inc) renderIncLayer();
       else incLayerGroup.clearLayers();
 
-      if (activeLayers.taxi) renderTaxiLayer();
+      if (activeLayers.taxi) renderTaxiStandsLayer();
       else taxiLayerGroup.clearLayers();
+
+      if (activeLayers.cabs) {
+        renderLiveCabsLayer();
+        if (!map.hasLayer(cabsClusterGroup)) map.addLayer(cabsClusterGroup);
+      } else {
+        cabsClusterGroup.clearLayers();
+        if (map.hasLayer(cabsClusterGroup)) map.removeLayer(cabsClusterGroup);
+      }
 
       if (activeLayers.ev) renderEVLayer();
       else evLayerGroup.clearLayers();
@@ -613,48 +726,102 @@
       });
     }
 
-    function renderTaxiLayer() {
+    function renderTaxiStandsLayer() {
       taxiLayerGroup.clearLayers();
-      if (!superMapData) return;
+      if (!superMapData || !superMapData.taxi_stands) return;
 
-      // 1. Render all official taxi stands
-      if (superMapData.taxi_stands && Array.isArray(superMapData.taxi_stands)) {
-        superMapData.taxi_stands.forEach(t => {
-          const iconHtml = '<div class="stand-pin">&#128662;</div>';
-          const icon = L.divIcon({ html: iconHtml, className: '', iconSize: [26, 26], iconAnchor: [13, 13] });
-          const marker = L.marker([t.latitude, t.longitude], { icon: icon });
+      superMapData.taxi_stands.forEach(t => {
+        const iconHtml = '<div class="stand-pin">&#128662;</div>';
+        const icon = L.divIcon({ html: iconHtml, className: '', iconSize: [26, 26], iconAnchor: [13, 13] });
+        const marker = L.marker([t.latitude, t.longitude], { icon: icon });
 
-          const popHtml = 
-            '<div class="popup-title">&#128662; Stand [' + t.taxi_code + ']</div>' +
-            '<div style="font-weight:600; color:#fff; margin-bottom:2px;">' + t.name + '</div>' +
-            '<div class="popup-sub">&#128739;&#65039; ' + (t.type || 'Official Stand') + ' &#8226; ' + (t.ownership || 'LTA') + '</div>' +
-            '<div><b>Barrier-Free:</b> ' + (t.bfa === 'Yes' ? '&#9855; Yes' : 'No') + '</div>' +
-            '<a class="popup-btn" target="_blank" href="https://www.google.com/maps/dir/?api=1&destination=' + t.latitude + ',' + t.longitude + '">&#128694; Walk to Stand</a>';
+        const popHtml = 
+          '<div class="popup-title">&#128662; Stand [' + t.taxi_code + ']</div>' +
+          '<div style="font-weight:600; color:#fff; margin-bottom:2px;">' + t.name + '</div>' +
+          '<div class="popup-sub">&#128739;&#65039; ' + (t.type || 'Official Stand') + ' &#8226; ' + (t.ownership || 'LTA') + '</div>' +
+          '<div><b>Barrier-Free:</b> ' + (t.bfa === 'Yes' ? '&#9855; Yes' : 'No') + '</div>' +
+          '<a class="popup-btn" target="_blank" href="https://www.google.com/maps/dir/?api=1&destination=' + t.latitude + ',' + t.longitude + '">&#128694; Walk to Stand</a>';
 
-          marker.bindPopup(popHtml);
-          taxiLayerGroup.addLayer(marker);
-        });
+        marker.bindPopup(popHtml);
+        taxiLayerGroup.addLayer(marker);
+      });
+    }
+
+    function renderLiveCabsLayer() {
+      cabsClusterGroup.clearLayers();
+      if (!superMapData || !superMapData.taxis) return;
+
+      const markers = [];
+      superMapData.taxis.forEach(pt => {
+        const lat = pt[0];
+        const lon = pt[1];
+        const iconHtml = '<div class="taxi-pin">&#128661;</div>';
+        const icon = L.divIcon({ html: iconHtml, className: '', iconSize: [22, 22], iconAnchor: [11, 11] });
+        const marker = L.marker([lat, lon], { icon: icon });
+
+        const popHtml = 
+          '<div class="popup-title">&#128661; Vacant Taxi (Live)</div>' +
+          '<div class="popup-sub">&#128205; GPS: ' + lat.toFixed(4) + ', ' + lon.toFixed(4) + '</div>' +
+          '<div style="color:#3fb950; font-weight:600; margin-bottom:4px;">&#9679; Available Now (LTA Live Stream)</div>' +
+          '<a class="popup-btn" target="_blank" href="https://www.google.com/maps/search/?api=1&query=' + lat + ',' + lon + '">&#128506;&#65039; View in Maps</a>';
+
+        marker.bindPopup(popHtml);
+        markers.push(marker);
+      });
+
+      cabsClusterGroup.addLayers(markers);
+    }
+
+    function calculateDistance(lat1, lon1, lat2, lon2) {
+      const R = 6371000;
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    function findNearestCab(lat, lon) {
+      if (!superMapData || !superMapData.taxis || superMapData.taxis.length === 0) return;
+
+      let closest = null;
+      let minDistance = Infinity;
+
+      superMapData.taxis.forEach(pt => {
+        const d = calculateDistance(lat, lon, pt[0], pt[1]);
+        if (d < minDistance) {
+          minDistance = d;
+          closest = pt;
+        }
+      });
+
+      if (closest && minDistance < 5000) {
+        nearestCabCoords = closest;
+        const distM = Math.round(minDistance);
+        const walkMin = Math.max(1, Math.round(distM / 80));
+
+        const banner = document.getElementById('nearest-cab-banner');
+        document.getElementById('nc-dist').innerText = '~' + distM + 'm away';
+        document.getElementById('nc-walk').innerText = '~' + walkMin + ' min walk';
+        banner.style.display = 'flex';
+
+        if (nearestCabLine) map.removeLayer(nearestCabLine);
+        nearestCabLine = L.polyline([[lat, lon], [closest[0], closest[1]]], {
+          color: '#e3b341',
+          weight: 2,
+          dashArray: '6, 6',
+          opacity: 0.9
+        }).addTo(map);
       }
+    }
 
-      // 2. Render live vacant taxis
-      if (superMapData.taxis && Array.isArray(superMapData.taxis)) {
-        superMapData.taxis.forEach(pt => {
-          const lat = pt[0];
-          const lon = pt[1];
-          const iconHtml = '<div class="taxi-pin">&#128661;</div>';
-          const icon = L.divIcon({ html: iconHtml, className: '', iconSize: [22, 22], iconAnchor: [11, 11] });
-          const marker = L.marker([lat, lon], { icon: icon });
-
-          const popHtml = 
-            '<div class="popup-title">&#128661; Vacant Taxi (Live)</div>' +
-            '<div class="popup-sub">&#128205; GPS: ' + lat.toFixed(4) + ', ' + lon.toFixed(4) + '</div>' +
-            '<div style="color:#3fb950; font-weight:600; margin-bottom:4px;">&#9679; Available Now (LTA Live Stream)</div>' +
-            '<a class="popup-btn" target="_blank" href="https://www.google.com/maps/search/?api=1&query=' + lat + ',' + lon + '">&#128506;&#65039; View in Maps</a>';
-
-          marker.bindPopup(popHtml);
-          taxiLayerGroup.addLayer(marker);
-        });
+    function focusNearestCab() {
+      if (!nearestCabCoords) return;
+      if (!activeLayers.cabs) {
+        toggleLayer('cabs');
       }
+      map.flyTo([nearestCabCoords[0], nearestCabCoords[1]], 16, { duration: 1.2 });
     }
 
     function renderEVLayer() {
@@ -699,6 +866,7 @@
           userMarker.bindPopup('<b>&#128205; You are here</b><br>Live GPS Centered').openPopup();
 
           map.flyTo([lat, lon], 14, { duration: 1.2 });
+          findNearestCab(lat, lon);
         },
         (err) => {
           console.warn("Geolocation failed:", err);
@@ -719,6 +887,7 @@
       const icon = L.divIcon({ html: iconHtml, className: '', iconSize: [20, 20], iconAnchor: [10, 10] });
       userMarker = L.marker([pLat, pLon], { icon: icon }).addTo(map);
       userMarker.bindPopup('<b>&#128205; Your Selected Location</b>').openPopup();
+      setTimeout(() => findNearestCab(pLat, pLon), 500);
     }
 
     // Initial Load
