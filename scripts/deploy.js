@@ -39,10 +39,11 @@ if (envVars.SUPABASE_ANON_KEY) {
   );
 }
 
-if (envVars.TELEGRAM_BOT_TOKEN) {
+const botToken = envVars.LTA_BOT_TOKEN || envVars.TELEGRAM_BOT_TOKEN || "";
+if (botToken) {
   index = index.replace(
-    'const token = Deno.env.get("TELEGRAM_BOT_TOKEN") ?? "";',
-    `const token = Deno.env.get("TELEGRAM_BOT_TOKEN") || "${envVars.TELEGRAM_BOT_TOKEN}";`
+    'const token = Deno.env.get("LTA_BOT_TOKEN") ?? "";',
+    `const token = Deno.env.get("LTA_BOT_TOKEN") || "${botToken}";`
   );
 }
 

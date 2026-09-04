@@ -10,8 +10,8 @@ import {
 } from "./db.ts";
 import { ERP_CORRIDORS, ERP_GANTRIES, getCurrentERPRate, calculateVehicleRate, searchERPGantries, getGantriesByCorridor, getSGTHourAndMinute } from "./erp_data.ts";
 
-const token = Deno.env.get("TELEGRAM_BOT_TOKEN") ?? "";
-if (!token) console.warn("TELEGRAM_BOT_TOKEN environment variable not set");
+const token = Deno.env.get("LTA_BOT_TOKEN") ?? "";
+if (!token) console.warn("LTA_BOT_TOKEN environment variable not set");
 
 const bot = new Bot(token);
 
