@@ -23,50 +23,56 @@ The bot features 4 high-speed, zero-watermark interactive map dashboards built w
 
 ---
 
-## ✨ 13 Core Features
+## ✨ Core Capabilities
 
-### 1. 🚌 Live Bus Arrivals & Crowd Levels (`/bus`)
-* Real-time countdowns for up to 3 upcoming buses.
-* Crowd load indicators: 🟢 *Seats Available*, 🟡 *Standing Available*, 🔴 *Limited Standing*.
-* Wheelchair-accessible bus icons (🧑‍🦽) and single/double-decker fleet identifiers.
+### 1. 🚆 Real-Time MRT Disruption Alerts & Network Health (`/status`, `/mrtstatus`, `/alerts`)
+* Live 6-line operational health status (**NSL**, **EWL**, **CCL**, **DTL**, **NEL**, **TEL**).
+* Active breakdown notifications, affected station stretches, free regular bus bridging, and dedicated MRT shuttle services straight from LTA DataMall `TrainServiceAlerts`.
+* Instant push notification subscriptions for your daily lines.
 
-### 2. 🚍 Bus Route Explorer (`/route`)
-* Full sequential list of bus stops, cumulative distances, and operating timetables.
+### 2. 💬 Telegram Inline Mode (`@LTA_Mall_Bot <query>` in Any Chat)
+* Query transport data directly from any Telegram group, channel, or direct message without adding the bot:
+  * `@LTA_Mall_Bot 01012` — Instant bus arrivals & load indicators for any 5-digit bus stop.
+  * `@LTA_Mall_Bot status` — Live MRT line health overview card.
+  * `@LTA_Mall_Bot Orchard` — Official first & terminating last train timetable cards.
+  * `@LTA_Mall_Bot Suntec` — Real-time shopping mall and office carpark lot counts.
 
-### 3. 🗺️ Smart Journey Planner (`/goto`)
+### 3. 🌙 First & Last Train Timetable Checker (`/firstlast`, `/train`)
+* Connected directly to the official transit timetable API covering all 176 Singapore MRT/LRT stations.
+* Displays exact weekday, Saturday, and Sunday/PH first train departure times.
+* Displays terminating last train departures (including mid-line termination stops like Kranji or Springleaf).
+* Station exit destinations and 1-tap Google Maps directions.
+
+### 4. 🅿️ Live Carpark Lot Availability (`/carpark`, `/parking`)
+* Live lot availability across 500+ shopping malls, commercial buildings, and HDB hubs across Singapore.
+* Categorized color indicators: 🟢 *Plenty (>50)*, 🟡 *Moderate (10–50)*, 🔴 *Limited (<10 / Full)*.
+* Direct 1-tap Google Maps driving navigation buttons.
+
+### 5. 🚌 Live Bus Arrivals & Route Explorer (`/bus`, `/route`)
+* Real-time countdowns for up to 3 upcoming buses with crowd load indicators (🟢 SEA, 🟡 SDA, 🔴 LSD) and fleet deck types.
+* Sequential stop-by-stop route explorer with first & last bus schedules and operating frequencies.
+
+### 6. 🗺️ Smart Journey Planner (`/goto`)
 * Find direct bus routes and 1-transfer journeys between any two bus stops or landmarks in Singapore.
 
-### 4. 🚆 MRT Platform Crowds & Health (`/mrt`, `/disruptions`)
-* Real-time crowd density indicators for all 6 train lines (**NSL**, **EWL**, **CCL**, **DTL**, **NEL**, **TEL**).
-* Active train disruption alerts, free shuttle bus bridging, and alternative route advice.
-
-### 5. 🔔 Automated Train Disruption Push Alerts (`/mrtalerts`)
-* Subscribe to instant push notifications when a breakdown occurs on your daily train lines, powered by automated background cron checks.
-
-### 6. 💳 Live ERP Gantry Pricing & Timetables (`/erp`)
+### 7. 💳 Live ERP Gantry Pricing & Timetables (`/erp`)
 * All 30 major expressway & arterial gantries (CTE, PIE, AYE, KPE, ECP/MCE, CBD, Orchard).
-* Real-time rate engine evaluated in Singapore Time (SGT UTC+8) with next-slot change warnings.
-* Vehicle multiplier switcher: 🚗 **Cars (1.0x)**, 🏍️ **Motorcycles (0.5x)**, 🚛 **Heavy Goods Vehicles (1.5x)**.
+* Real-time rate engine evaluated in Singapore Time (SGT UTC+8) with next-slot change warnings and vehicle multipliers (🚗 Cars 1.0x, 🏍️ Moto 0.5x, 🚛 HGV 1.5x).
 
-### 7. 🇸🇬🇲🇾 Causeway & Tuas Checkpoint Radar (`/checkpoint`, `/causeway`)
-* Dual-hub radar for Woodlands Causeway (Cams 2701, 2702, 2704) and Tuas Second Link (Cams 4712, 4713, 4703).
-* High-res multi-camera snapshot albums and expressway approach incident warnings (BKE, SLE, AYE).
+### 8. 🇸🇬🇲🇾 Causeway & Tuas Checkpoint Radar (`/checkpoint`, `/causeway`)
+* Dual-hub radar for Woodlands Causeway and Tuas Second Link with live snapshot cameras and expressway incident advisories.
 
-### 8. 🔔 Bus Alighting Alarm & Live GPS Trip Tracker (`/alight`)
-* Never miss your bus stop again when resting or on your phone.
-* Share your Telegram Live Location; the bot monitors your distance and sounds an urgent wake-up buzzer when you are ~500m (or 300m / 800m) away.
+### 9. 🔔 Bus Alighting Alarm & Live GPS Trip Tracker (`/alight`)
+* Share your Telegram Live Location; the bot monitors your distance and sounds an urgent wake-up buzzer when you are ~500m away from your destination stop.
 
-### 9. 🗺️ All-in-One Transit "Super-Map" (`/supermap`, `/map`)
-* Consolidates ERP gantries, cameras, incidents, taxis, and EV hubs into a single unified Leaflet map.
+### 10. 🗺️ All-in-One Transit "Super-Map" (`/supermap`, `/map`)
+* Consolidates ERP gantries, cameras, incidents, taxis, and EV hubs into a single unified high-speed Leaflet map.
 
-### 10. ⚡ EV Fast Charging Station Locator (`/ev`)
+### 11. ⚡ EV Fast Charging Station Locator (`/ev`)
 * 23 major high-speed charging hubs across Singapore with live plug availability, connector types (DC Fast / AC), charging speeds (kW), and pricing.
 
-### 11. 🚗 Carpark Lot Availability (`/carpark`)
-* Live lot counts for popular shopping malls, CBD office towers, and HDB carparks with Google Maps navigation links.
-
 ### 12. 🚕 Vacant Taxis & Taxi Stands (`/taxi`)
-* Live count of vacant taxis within 1km + official LTA barrier-free taxi stands with queue capacities.
+* Live vacant taxi count + 316 official LTA barrier-free taxi stands with queue capacities.
 
 ### 13. 📍 5-in-1 Instant GPS Location Scan
 * Send any 📎 **Location attachment** in Telegram for an instant consolidated radar report of nearby bus stops, carparks, EV chargers, taxi stands, and sheltered bicycle racks.
@@ -78,14 +84,18 @@ The bot features 4 high-speed, zero-watermark interactive map dashboards built w
 | Command | Description |
 | :--- | :--- |
 | `/supermap` or `/map` | 🗺️ Launch the interactive All-in-One Transit Super-Map |
+| `/status` or `/mrtstatus` | 🚆 Real-time 6-line MRT disruption health & travel advisories |
+| `/firstlast <station>` | 🌙 Official first & terminating last train departure timetables |
+| `/train <station/code>` | 🚆 Search MRT station timetables & exit directories |
+| `/carpark <name>` | 🚗 Live carpark lot availability & Google Maps driving links |
+| `/parking <name>` | 🅿️ Search parking lots across 500+ Singapore locations |
+| `/alerts` or `/mrtalerts`| 🔔 Manage MRT breakdown push notification subscriptions |
 | `/bus <code/name>` | 🚌 Live bus arrival timings, loads & wheelchair status |
 | `/route <service>` | 🚍 Bus route sequence, stop distances & operating hours |
 | `/goto <A> to <B>` | 🗺️ Plan direct and 1-transfer bus journeys |
 | `/alight <code>` | 🔔 Set bus alighting alarm with Telegram Live Location tracking |
 | `/cancelalight` | ⏹️ Stop and cancel active alighting alarm |
 | `/mrt <line>` | 🚆 Platform crowd density for all 6 MRT lines |
-| `/disruptions` | ⚠️ Train breakdown status & bridging shuttle advice |
-| `/mrtalerts` | 🔔 Manage MRT disruption push notification subscriptions |
 | `/checkpoint` | 🇸🇬🇲🇾 Woodlands Causeway & Tuas Second Link camera radar |
 | `/erp <corridor>` | 💳 Live ERP gantry rates, upcoming slot changes & vehicle multipliers |
 | `/ev <postal/name>` | ⚡ Live EV chargers, plug speeds & availability |
