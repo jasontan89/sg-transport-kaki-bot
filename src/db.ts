@@ -46,10 +46,10 @@ export async function getAllTaxiStands() {
   return data || [];
 }
 
-export async function addFavorite(user_id: number, type: string, value: string, label: string): Promise<boolean> {
+export async function addFavorite(user_id: number, type: string, value: string, label: string, metadata: any = {}): Promise<boolean> {
   const { error } = await supabase
     .from('lta_favorites')
-    .upsert({ user_id, type, value, label }, { onConflict: 'user_id,type,value' });
+    .upsert({ user_id, type, value, label, metadata }, { onConflict: 'user_id,type,value' });
 
   if (error) {
     console.error("Error adding favorite:", error);

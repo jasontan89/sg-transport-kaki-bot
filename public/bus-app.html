@@ -3,824 +3,689 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>SG BusLeh - Live Bus Companion</title>
+  <title>SG BusLeh</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
     :root {
-      --bg: var(--tg-theme-bg-color, #0f131a);
-      --card-bg: var(--tg-theme-secondary-bg-color, #181e29);
-      --text: var(--tg-theme-text-color, #ffffff);
-      --subtext: var(--tg-theme-hint-color, #9aa0a6);
-      --primary: var(--tg-theme-button-color, #388bfd);
-      --primary-text: var(--tg-theme-button-text-color, #ffffff);
-      --accent: #2ea44f;
-      --warning: #d29922;
-      --danger: #f85149;
-      --border: rgba(255, 255, 255, 0.08);
-      --card-radius: 14px;
-      --pill-radius: 8px;
+      --brand-red: #e53935;
+      --brand-red-dark: #c62828;
+      --bg: #f5f6f8;
+      --card-bg: #ffffff;
+      --text-main: #1f2328;
+      --text-sub: #656d76;
+      --border-light: #e1e4e8;
+      --primary: #e53935;
+      --accent-green: #2ea44f;
+      --accent-amber: #d29922;
+      --accent-red: #cf222e;
+      --pill-radius: 6px;
+    }
+
+    /* Dark Mode Theme adaptation (if user Telegram is dark) */
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #12161f;
+        --card-bg: #1a2130;
+        --text-main: #f0f6fc;
+        --text-sub: #8b949e;
+        --border-light: rgba(255, 255, 255, 0.1);
+      }
     }
 
     * {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Roboto", "Segoe UI", Helvetica, Arial, sans-serif;
       -webkit-tap-highlight-color: transparent;
     }
 
     body {
       background: var(--bg);
-      color: var(--text);
+      color: var(--text-main);
       min-height: 100vh;
       display: flex;
       flex-direction: column;
       overflow-x: hidden;
-      padding-bottom: 75px;
+      padding-bottom: 20px;
     }
 
-    /* Top Sticky Header */
-    .top-header {
+    /* SG BusLeh Iconic Red App Bar */
+    .app-header {
+      background: var(--brand-red);
+      color: #ffffff;
       position: sticky;
       top: 0;
-      z-index: 100;
-      background: rgba(15, 19, 26, 0.90);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border-bottom: 1px solid var(--border);
-      padding: 10px 16px;
+      z-index: 1000;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .header-top {
       display: flex;
       justify-content: space-between;
       align-items: center;
+      padding: 10px 16px 6px 16px;
     }
 
-    .header-branding h1 {
-      font-size: 17px;
+    .header-title {
+      font-size: 19px;
       font-weight: 700;
+      letter-spacing: 0.2px;
       display: flex;
       align-items: center;
       gap: 6px;
     }
 
-    .header-sub {
-      font-size: 11px;
-      color: var(--subtext);
+    .header-icons {
       display: flex;
       align-items: center;
-      gap: 6px;
-      margin-top: 2px;
+      gap: 14px;
+      font-size: 17px;
     }
 
-    .header-actions {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .refresh-circle-btn {
-      width: 34px;
-      height: 34px;
-      border-radius: 50%;
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      color: var(--text);
+    .header-icon-btn {
+      background: none;
+      border: none;
+      color: #ffffff;
+      cursor: pointer;
+      font-size: 17px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 14px;
+    }
+
+    /* Tabs Bar (Exactly matching SG BusLeh screenshot) */
+    .tabs-bar {
+      display: flex;
+      overflow-x: auto;
+      border-top: 1px solid rgba(255, 255, 255, 0.15);
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 10px 8px;
+      text-align: center;
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: rgba(255, 255, 255, 0.75);
+      background: none;
+      border: none;
       cursor: pointer;
       position: relative;
+      white-space: nowrap;
+      transition: color 0.15s ease;
     }
 
-    .refresh-circle-btn:active {
-      transform: scale(0.92);
+    .tab-btn.active {
+      color: #ffffff;
     }
 
-    .countdown-ring {
+    .tab-btn.active::after {
+      content: '';
       position: absolute;
-      top: 1px;
-      right: 1px;
-      font-size: 9px;
-      font-weight: 700;
-      color: var(--primary);
+      bottom: 0;
+      left: 15%;
+      right: 15%;
+      height: 3.5px;
+      background: #ffffff;
+      border-radius: 3px 3px 0 0;
     }
 
-    /* Floating Active Alarm Banner */
+    /* Active Alighting Alarm Banner */
     .alarm-banner {
       display: none;
-      background: linear-gradient(135deg, rgba(210, 153, 34, 0.25), rgba(248, 81, 73, 0.25));
-      border: 1px solid rgba(210, 153, 34, 0.4);
-      margin: 10px 14px 0 14px;
+      background: linear-gradient(135deg, #d32f2f, #b71c1c);
+      color: #fff;
       padding: 10px 14px;
-      border-radius: 12px;
       align-items: center;
       justify-content: space-between;
-      animation: pulseAlarm 2s infinite;
+      animation: pulseAlert 2s infinite;
     }
 
     .alarm-banner.active {
       display: flex;
     }
 
-    @keyframes pulseAlarm {
-      0% { box-shadow: 0 0 0 0 rgba(210, 153, 34, 0.4); }
-      70% { box-shadow: 0 0 0 8px rgba(210, 153, 34, 0); }
-      100% { box-shadow: 0 0 0 0 rgba(210, 153, 34, 0); }
+    @keyframes pulseAlert {
+      0% { opacity: 0.95; }
+      50% { opacity: 1; filter: brightness(1.1); }
+      100% { opacity: 0.95; }
     }
 
-    .alarm-info {
+    /* Split-Screen Nearby Layout (Screenshot replication) */
+    .nearby-container {
       display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .alarm-icon {
-      font-size: 22px;
-      animation: ring 1.5s infinite;
-    }
-
-    @keyframes ring {
-      0%, 100% { transform: rotate(0); }
-      20%, 60% { transform: rotate(-15deg); }
-      40%, 80% { transform: rotate(15deg); }
-    }
-
-    .alarm-text h4 {
-      font-size: 13px;
-      font-weight: 700;
-      color: #fff;
-    }
-
-    .alarm-text p {
-      font-size: 11px;
-      color: #f0f6fc;
-      margin-top: 2px;
-    }
-
-    .alarm-cancel-btn {
-      background: rgba(255, 255, 255, 0.15);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      color: #fff;
-      font-size: 11px;
-      font-weight: 600;
-      padding: 5px 10px;
-      border-radius: 8px;
-      cursor: pointer;
-    }
-
-    /* Container */
-    .view-container {
-      padding: 12px 14px;
+      flex-direction: column;
       flex: 1;
     }
 
-    /* Bottom Navigation Bar */
-    .bottom-nav {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      height: 64px;
-      background: rgba(18, 24, 36, 0.96);
-      backdrop-filter: blur(18px);
-      -webkit-backdrop-filter: blur(18px);
-      border-top: 1px solid var(--border);
-      display: flex;
-      justify-content: space-around;
-      align-items: center;
-      z-index: 1000;
-      padding-bottom: env(safe-area-inset-bottom, 0px);
+    /* Leaflet Map in Top Half */
+    .map-wrapper {
+      position: relative;
+      width: 100%;
+      height: 250px;
+      background: #e5e3df;
+      border-bottom: 2px solid var(--border-light);
+      z-index: 10;
     }
 
-    .nav-tab {
+    #nearby-map {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Custom Leaflet Pins matching SG BusLeh */
+    .user-avatar-marker {
+      font-size: 26px;
+      text-align: center;
+      line-height: 1;
+      filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
+    }
+
+    .bus-stop-pin {
+      position: relative;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      gap: 3px;
-      background: none;
-      border: none;
-      color: var(--subtext);
-      font-size: 11px;
-      font-weight: 500;
       cursor: pointer;
-      flex: 1;
-      padding: 6px 0;
-      transition: color 0.15s ease;
     }
 
-    .nav-tab .tab-icon {
+    .pin-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #d32f2f;
+      border: 2.5px solid #ffffff;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.35);
+    }
+
+    .pin-label {
+      background: rgba(183, 28, 28, 0.88);
+      color: #ffffff;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      white-space: nowrap;
+      margin-bottom: 2px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+      max-width: 120px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Floating Red GPS Target FAB */
+    .gps-fab {
+      position: absolute;
+      right: 14px;
+      bottom: 14px;
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      background: #d32f2f;
+      color: #ffffff;
+      border: none;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+      display: flex;
+      align-items: center;
+      justify-content: center;
       font-size: 20px;
+      cursor: pointer;
+      z-index: 500;
       transition: transform 0.15s ease;
     }
 
-    .nav-tab.active {
-      color: var(--primary);
-      font-weight: 700;
+    .gps-fab:active {
+      transform: scale(0.92);
     }
 
-    .nav-tab.active .tab-icon {
-      transform: scale(1.15);
-    }
-
-    /* Section Headers */
-    .section-title {
-      font-size: 13px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: var(--subtext);
-      margin: 10px 4px 8px 4px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    /* Stop Summary Card */
-    .stop-card {
+    /* Bus Stop List Section (Screenshot replication) */
+    .stop-list-scroll {
+      flex: 1;
       background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: var(--card-radius);
-      margin-bottom: 12px;
-      overflow: hidden;
-      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
-      transition: border-color 0.2s ease;
     }
 
-    .stop-card.expanded {
-      border-color: rgba(56, 139, 253, 0.45);
+    .stop-item-row {
+      border-bottom: 1px solid var(--border-light);
+      background: var(--card-bg);
+      transition: background 0.15s ease;
     }
 
-    .stop-header {
-      padding: 12px 14px;
+    .stop-item-row.expanded {
+      background: rgba(229, 57, 53, 0.03);
+    }
+
+    .stop-main-header {
       display: flex;
-      justify-content: space-between;
       align-items: center;
+      padding: 13px 16px;
       cursor: pointer;
-      background: rgba(255, 255, 255, 0.02);
+      user-select: none;
     }
 
-    .stop-header:active {
-      background: rgba(255, 255, 255, 0.05);
+    .stop-main-header:active {
+      background: rgba(0, 0, 0, 0.04);
     }
 
-    .stop-title-group {
+    .chevron-icon {
+      font-size: 16px;
+      color: var(--text-sub);
+      margin-right: 14px;
+      transition: transform 0.2s ease;
+      width: 16px;
+      text-align: center;
+    }
+
+    .stop-item-row.expanded .chevron-icon {
+      transform: rotate(180deg);
+      color: var(--brand-red);
+    }
+
+    .stop-details-col {
+      flex: 1;
       display: flex;
       flex-direction: column;
       gap: 2px;
     }
 
-    .stop-name {
+    .stop-primary-name {
       font-size: 15px;
       font-weight: 700;
-      color: var(--text);
+      color: var(--text-main);
+    }
+
+    .stop-secondary-road {
+      font-size: 12px;
+      color: var(--text-sub);
+    }
+
+    .stop-trailing-group {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
     }
 
-    .stop-code-badge {
-      background: rgba(56, 139, 253, 0.15);
-      color: var(--primary);
-      font-size: 10px;
-      font-weight: 700;
-      padding: 2px 6px;
-      border-radius: 4px;
-      letter-spacing: 0.5px;
-    }
-
-    .stop-sub {
+    .stop-distance-badge {
       font-size: 11px;
-      color: var(--subtext);
+      font-weight: 600;
+      color: var(--text-sub);
+      background: rgba(0, 0, 0, 0.05);
+      padding: 2px 7px;
+      border-radius: 12px;
     }
 
-    .stop-actions {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .icon-action-btn {
-      background: rgba(255, 255, 255, 0.06);
-      border: 1px solid var(--border);
-      color: var(--subtext);
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 14px;
+    .kebab-menu-btn {
+      background: none;
+      border: none;
+      color: var(--text-sub);
+      font-size: 18px;
       cursor: pointer;
+      padding: 4px;
+      line-height: 1;
     }
 
-    .icon-action-btn.active {
-      color: #e3b341;
-      background: rgba(227, 179, 65, 0.18);
-      border-color: rgba(227, 179, 65, 0.45);
-    }
-
-    /* Bus Arrival List */
-    .bus-list {
-      padding: 6px 12px 12px 12px;
-      border-top: 1px solid var(--border);
-      display: flex;
+    /* Expandable Bus Arrival Cards */
+    .bus-arrivals-drawer {
+      display: none;
+      padding: 0 16px 14px 44px;
       flex-direction: column;
       gap: 8px;
+      border-top: 1px dashed var(--border-light);
     }
 
-    .bus-row {
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid rgba(255, 255, 255, 0.05);
-      border-radius: 10px;
-      padding: 10px 12px;
+    .stop-item-row.expanded .bus-arrivals-drawer {
+      display: flex;
+    }
+
+    /* Stop Quick Actions Bar */
+    .stop-quick-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 0;
+      border-bottom: 1px solid var(--border-light);
+      margin-bottom: 4px;
+    }
+
+    .action-pill-btn {
+      background: none;
+      border: 1px solid var(--border-light);
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-sub);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .action-pill-btn.active {
+      background: rgba(227, 179, 65, 0.15);
+      border-color: #d29922;
+      color: #d29922;
+    }
+
+    /* SGBusLeh Triple-Pill Card */
+    .service-card {
+      background: var(--bg);
+      border: 1px solid var(--border-light);
+      border-radius: 8px;
+      padding: 8px 12px;
       display: flex;
       flex-direction: column;
       gap: 6px;
       cursor: pointer;
-      transition: background 0.15s ease;
     }
 
-    .bus-row:active {
-      background: rgba(255, 255, 255, 0.06);
-    }
-
-    .bus-main-bar {
+    .service-card-top {
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
 
-    .bus-id-group {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .service-badge {
+    .service-no-badge {
       font-size: 17px;
       font-weight: 800;
-      color: #fff;
+      color: var(--text-main);
       min-width: 48px;
-      letter-spacing: 0.3px;
     }
 
-    .service-operator {
-      font-size: 10px;
-      color: var(--subtext);
-      background: rgba(255, 255, 255, 0.06);
-      padding: 2px 5px;
-      border-radius: 4px;
-    }
-
-    /* SGBusLeh Triple-Pills */
-    .timings-group {
+    .pills-cluster {
       display: flex;
-      align-items: center;
       gap: 5px;
     }
 
-    .arrival-pill {
+    .timing-pill {
       display: flex;
       align-items: center;
-      gap: 4px;
+      gap: 3px;
       padding: 4px 8px;
       border-radius: var(--pill-radius);
       font-size: 12px;
       font-weight: 700;
       min-width: 46px;
       justify-content: center;
-      letter-spacing: 0.2px;
     }
 
-    /* Load Colors */
     .load-sea {
-      background: rgba(46, 164, 79, 0.2);
-      border: 1px solid rgba(46, 164, 79, 0.5);
-      color: #3fb950;
+      background: rgba(46, 164, 79, 0.15);
+      border: 1px solid rgba(46, 164, 79, 0.4);
+      color: var(--accent-green);
     }
 
     .load-sda {
-      background: rgba(210, 153, 34, 0.2);
-      border: 1px solid rgba(210, 153, 34, 0.5);
-      color: #d29922;
+      background: rgba(210, 153, 34, 0.15);
+      border: 1px solid rgba(210, 153, 34, 0.4);
+      color: var(--accent-amber);
     }
 
     .load-lsd {
-      background: rgba(248, 81, 73, 0.2);
-      border: 1px solid rgba(248, 81, 73, 0.5);
-      color: #f85149;
+      background: rgba(207, 34, 46, 0.15);
+      border: 1px solid rgba(207, 34, 46, 0.4);
+      color: var(--accent-red);
     }
 
     .load-none {
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      color: var(--subtext);
-      font-weight: 500;
+      background: rgba(0, 0, 0, 0.05);
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      color: var(--text-sub);
     }
 
-    .pill-icon {
-      font-size: 10px;
-    }
-
-    .bus-sub-bar {
+    .service-card-bottom {
       display: flex;
       justify-content: space-between;
-      align-items: center;
       font-size: 11px;
-      color: var(--subtext);
-      padding-top: 2px;
+      color: var(--text-sub);
     }
 
-    .bus-dest {
-      display: flex;
+    /* Bus Service Filter Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.6);
+      z-index: 2000;
       align-items: center;
-      gap: 4px;
-      max-width: 75%;
-      white-space: nowrap;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .modal-overlay.open {
+      display: flex;
+    }
+
+    .modal-card {
+      background: var(--card-bg);
+      border-radius: 14px;
+      width: 100%;
+      max-width: 360px;
+      max-height: 80vh;
+      display: flex;
+      flex-direction: column;
       overflow: hidden;
-      text-overflow: ellipsis;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.4);
     }
 
-    /* Expandable Where is my Bus Route Timeline */
-    .route-tracker {
-      display: none;
-      margin-top: 6px;
-      padding-top: 8px;
-      border-top: 1px dashed rgba(255, 255, 255, 0.1);
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .route-tracker.open {
-      display: flex;
-    }
-
-    .tracker-header {
-      font-size: 10px;
-      font-weight: 700;
-      color: var(--primary);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
+    .modal-header {
+      background: var(--brand-red);
+      color: #fff;
+      padding: 14px 16px;
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
 
-    .bus-gps-status {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      background: rgba(56, 139, 253, 0.1);
-      border: 1px solid rgba(56, 139, 253, 0.25);
-      padding: 6px 10px;
-      border-radius: 8px;
-      font-size: 11px;
-    }
-
-    .bus-gps-pin {
-      color: #388bfd;
-      font-size: 14px;
-    }
-
-    /* Search Tab */
-    .search-box-wrap {
-      position: sticky;
-      top: 55px;
-      z-index: 90;
-      padding-bottom: 8px;
-      background: var(--bg);
-    }
-
-    .search-input-container {
-      display: flex;
-      align-items: center;
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 8px 12px;
-      gap: 8px;
-    }
-
-    .search-input-container:focus-within {
-      border-color: var(--primary);
-    }
-
-    .search-input {
-      flex: 1;
-      background: none;
-      border: none;
-      outline: none;
-      color: var(--text);
-      font-size: 14px;
-    }
-
-    .search-input::placeholder {
-      color: var(--subtext);
-    }
-
-    .clear-search-btn {
-      background: none;
-      border: none;
-      color: var(--subtext);
-      font-size: 14px;
-      cursor: pointer;
-      display: none;
-    }
-
-    .clear-search-btn.show {
-      display: block;
-    }
-
-    /* Route Line View (for Bus Service Itinerary) */
-    .service-route-card {
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: var(--card-radius);
-      padding: 14px;
-      margin-bottom: 12px;
-    }
-
-    .route-toggle-bar {
-      display: flex;
-      background: rgba(255, 255, 255, 0.05);
-      border-radius: 10px;
-      padding: 3px;
-      margin-bottom: 12px;
-      gap: 4px;
-    }
-
-    .route-toggle-btn {
-      flex: 1;
-      padding: 6px;
-      background: none;
-      border: none;
-      color: var(--subtext);
-      font-size: 12px;
-      font-weight: 600;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: all 0.15s ease;
-    }
-
-    .route-toggle-btn.active {
-      background: var(--primary);
-      color: var(--primary-text);
-    }
-
-    .schedule-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 6px;
-      margin-bottom: 14px;
-      background: rgba(255, 255, 255, 0.02);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 8px;
-      text-align: center;
-    }
-
-    .schedule-col h5 {
-      font-size: 10px;
-      color: var(--subtext);
-      margin-bottom: 3px;
-    }
-
-    .schedule-col p {
-      font-size: 11px;
+    .modal-header h3 {
+      font-size: 15px;
       font-weight: 700;
-      color: var(--text);
     }
 
-    .timeline-container {
+    .modal-body {
+      padding: 14px 16px;
+      overflow-y: auto;
+      flex: 1;
       display: flex;
       flex-direction: column;
-      position: relative;
-      padding-left: 20px;
+      gap: 10px;
     }
 
-    .timeline-container::before {
-      content: '';
-      position: absolute;
-      left: 6px;
-      top: 6px;
-      bottom: 6px;
-      width: 2px;
-      background: rgba(56, 139, 253, 0.3);
-    }
-
-    .timeline-node {
-      position: relative;
-      padding: 8px 0;
+    .filter-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: var(--bg);
       cursor: pointer;
     }
 
-    .timeline-node::before {
-      content: '';
-      position: absolute;
-      left: -18px;
-      top: 13px;
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      background: var(--card-bg);
-      border: 2px solid var(--primary);
+    .modal-footer {
+      padding: 10px 16px;
+      border-top: 1px solid var(--border-light);
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
     }
 
-    .timeline-node:active .node-name {
-      color: var(--primary);
+    .btn-secondary {
+      background: none;
+      border: 1px solid var(--border-light);
+      color: var(--text-sub);
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      cursor: pointer;
     }
 
-    .node-name {
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--text);
+    .btn-primary {
+      background: var(--brand-red);
+      border: none;
+      color: #fff;
+      padding: 6px 16px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
     }
 
-    .node-sub {
-      font-size: 11px;
-      color: var(--subtext);
+    /* MRT Map Tab */
+    .mrt-map-container {
+      width: 100%;
+      height: calc(100vh - 95px);
+      background: #12161f;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .mrt-map-img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
     }
 
     /* Skeleton Loading */
-    .skeleton-card {
-      background: var(--card-bg);
-      border-radius: var(--card-radius);
-      padding: 14px;
-      margin-bottom: 12px;
-      animation: skeletonShimmer 1.5s infinite;
+    .skeleton-bar {
+      height: 14px;
+      background: rgba(0, 0, 0, 0.08);
+      border-radius: 4px;
+      margin-bottom: 6px;
+      animation: pulseSkel 1.5s infinite;
     }
 
-    @keyframes skeletonShimmer {
+    @keyframes pulseSkel {
       0% { opacity: 0.5; }
       50% { opacity: 0.85; }
       100% { opacity: 0.5; }
     }
 
-    .skeleton-line {
-      height: 12px;
-      background: rgba(255, 255, 255, 0.08);
-      border-radius: 6px;
-      margin-bottom: 8px;
-    }
-
-    .skeleton-line.short { width: 40%; }
-    .skeleton-line.medium { width: 70%; }
-
-    /* Empty state */
+    /* Empty State */
     .empty-state {
       text-align: center;
       padding: 40px 20px;
-      color: var(--subtext);
-    }
-
-    .empty-state-icon {
-      font-size: 40px;
-      margin-bottom: 10px;
-      opacity: 0.6;
-    }
-
-    .empty-state h3 {
-      font-size: 15px;
-      color: var(--text);
-      margin-bottom: 4px;
-    }
-
-    .empty-state p {
-      font-size: 12px;
-    }
-
-    .cta-btn {
-      display: inline-block;
-      margin-top: 12px;
-      background: var(--primary);
-      color: var(--primary-text);
-      font-size: 12px;
-      font-weight: 600;
-      padding: 8px 16px;
-      border-radius: 8px;
-      border: none;
-      cursor: pointer;
+      color: var(--text-sub);
     }
   </style>
 </head>
 <body>
 
-  <!-- Top Sticky Header -->
-  <header class="top-header">
-    <div class="header-branding">
-      <h1>&#128652; SG BusLeh Companion</h1>
-      <div class="header-sub">
-        <span id="sgt-clock">--:-- SGT</span>
-        <span>&#8226;</span>
-        <span id="gps-status">&#128205; Locating...</span>
+  <!-- SG BusLeh Red Header -->
+  <header class="app-header">
+    <div class="header-top">
+      <div class="header-title">
+        <span>SG BusLeh</span>
+      </div>
+      <div class="header-icons">
+        <span id="header-clock" style="font-size: 12px; font-weight: 600; opacity: 0.9;">--:-- SGT</span>
+        <button class="header-icon-btn" onclick="manualRefresh()" title="Refresh">&#128260;</button>
       </div>
     </div>
-    <div class="header-actions">
-      <button class="refresh-circle-btn" onclick="manualRefresh()" title="Refresh Timings">
-        &#128260;
-        <span class="countdown-ring" id="countdown-val">30</span>
-      </button>
-    </div>
+
+    <!-- Navigation Tabs -->
+    <nav class="tabs-bar">
+      <button class="tab-btn" id="tab-fav" onclick="switchView('fav')">FAVOURITES</button>
+      <button class="tab-btn active" id="tab-nearby" onclick="switchView('nearby')">NEARBY</button>
+      <button class="tab-btn" id="tab-search" onclick="switchView('search')">SEARCH</button>
+      <button class="tab-btn" id="tab-mrt" onclick="switchView('mrt')">MRT MAP</button>
+    </nav>
   </header>
 
   <!-- Active Alighting Alarm Banner -->
   <div class="alarm-banner" id="alarm-banner">
-    <div class="alarm-info">
-      <div class="alarm-icon">&#128276;</div>
-      <div class="alarm-text">
-        <h4 id="alarm-stop-name">Alighting Alarm Armed</h4>
-        <p id="alarm-distance-txt">Tracking destination proximity...</p>
-      </div>
+    <div>
+      <div style="font-weight: 700; font-size: 13px;">&#128276; Alighting Alarm Armed</div>
+      <div id="alarm-banner-sub" style="font-size: 11px; opacity: 0.9;">Tracking distance to destination...</div>
     </div>
-    <button class="alarm-cancel-btn" onclick="cancelActiveAlarm()">&#9209; Cancel</button>
+    <button onclick="cancelActiveAlarm()" style="background: rgba(255,255,255,0.25); border: none; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer;">Cancel</button>
   </div>
 
-  <!-- Main View Container -->
-  <main class="view-container">
+  <!-- MAIN VIEWS CONTAINER -->
+  <main style="flex: 1; display: flex; flex-direction: column;">
     
-    <!-- 1. NEARBY STOPS VIEW -->
-    <section id="view-nearby">
-      <div class="section-title">
-        <span>&#128205; Closest Bus Stops</span>
-        <span id="nearby-count" style="font-size: 11px;">Scanning GPS...</span>
+    <!-- 1. NEARBY VIEW (SPLIT-SCREEN EXACTLY LIKE SGBUSLEH) -->
+    <section id="view-nearby" class="nearby-container">
+      <div class="map-wrapper">
+        <div id="nearby-map"></div>
+        <button class="gps-fab" onclick="recenterUserGPS()" title="Locate Me">&#127919;</button>
       </div>
-      <div id="nearby-list">
-        <div class="skeleton-card">
-          <div class="skeleton-line short"></div>
-          <div class="skeleton-line medium"></div>
-          <div class="skeleton-line"></div>
-        </div>
-        <div class="skeleton-card">
-          <div class="skeleton-line short"></div>
-          <div class="skeleton-line medium"></div>
+      <div class="stop-list-scroll" id="nearby-stops-list">
+        <div style="padding: 20px;">
+          <div class="skeleton-bar" style="width: 40%;"></div>
+          <div class="skeleton-bar" style="width: 70%;"></div>
         </div>
       </div>
     </section>
 
-    <!-- 2. SEARCH & ROUTES VIEW -->
-    <section id="view-search" style="display: none;">
-      <div class="search-box-wrap">
-        <div class="search-input-container">
-          <span style="font-size: 15px;">&#128269;</span>
-          <input type="text" id="bus-search-input" class="search-input" placeholder="Search stop code, road, or bus no. (e.g. 190, 09048, Orchard)" oninput="onSearchInput(this.value)">
-          <button id="clear-search-btn" class="clear-search-btn" onclick="clearSearch()">&#10005;</button>
-        </div>
+    <!-- 2. FAVOURITES VIEW -->
+    <section id="view-fav" style="display: none; background: var(--card-bg); flex: 1;">
+      <div style="padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-light);">
+        <span style="font-size: 12px; font-weight: 700; color: var(--text-sub); text-transform: uppercase;">Saved Bus Stops</span>
+        <button onclick="fetchFavoritesCloud()" style="background: none; border: none; color: var(--brand-red); font-size: 12px; font-weight: 700; cursor: pointer;">&#128260; Sync</button>
       </div>
-
-      <div id="search-results-area">
+      <div class="stop-list-scroll" id="fav-stops-list">
         <div class="empty-state">
-          <div class="empty-state-icon">&#128652;</div>
-          <h3>Search Singapore Buses</h3>
-          <p>Enter any 5-digit bus stop code, road name, or bus service number above.</p>
+          <h3>No Favorites Saved</h3>
+          <p style="font-size: 12px; margin-top: 4px;">Tap &#11088; on any bus stop to save it here for instant 1-tap arrival checks!</p>
         </div>
       </div>
     </section>
 
-    <!-- 3. FAVORITES VIEW -->
-    <section id="view-favorites" style="display: none;">
-      <div class="section-title">
-        <span>&#11088; My Pinned Stops & Services</span>
-        <button class="cta-btn" style="margin: 0; padding: 4px 10px; font-size: 10px;" onclick="refreshFavorites()">&#128260; Refresh All</button>
+    <!-- 3. SEARCH VIEW -->
+    <section id="view-search" style="display: none; padding: 14px; flex: 1;">
+      <div style="display: flex; align-items: center; background: var(--card-bg); border: 1px solid var(--border-light); border-radius: 10px; padding: 8px 12px; gap: 8px;">
+        <span>&#128269;</span>
+        <input type="text" id="search-input" placeholder="Search stop code or road (e.g. 43539, Orchard)" style="flex: 1; border: none; outline: none; background: none; font-size: 14px; color: var(--text-main);" oninput="onSearchInput(this.value)">
       </div>
-      <div id="favorites-list">
-        <div class="empty-state">
-          <div class="empty-state-icon">&#11088;</div>
-          <h3>No Favorites Pinned</h3>
-          <p>Tap the &#11088; icon on any bus stop or bus service to pin it here for instant 1-tap checks!</p>
-        </div>
+      <div id="search-results-list" style="margin-top: 12px;"></div>
+    </section>
+
+    <!-- 4. MRT MAP VIEW -->
+    <section id="view-mrt" style="display: none;">
+      <div class="mrt-map-container">
+        <img src="https://www.lta.gov.sg/content/dam/ltagov/getting_around/public_transport/rail_network/image/system-map-with-cr-pce-ccl-icon.jpg" alt="Singapore MRT Network Map" class="mrt-map-img" />
       </div>
     </section>
 
   </main>
 
-  <!-- Bottom Navigation Bar -->
-  <nav class="bottom-nav">
-    <button class="nav-tab active" id="tab-btn-nearby" onclick="switchTab('nearby')">
-      <span class="tab-icon">&#128205;</span>
-      <span>Nearby</span>
-    </button>
-    <button class="nav-tab" id="tab-btn-search" onclick="switchTab('search')">
-      <span class="tab-icon">&#128269;</span>
-      <span>Search & Routes</span>
-    </button>
-    <button class="nav-tab" id="tab-btn-favorites" onclick="switchTab('favorites')">
-      <span class="tab-icon">&#11088;</span>
-      <span>Favorites</span>
-    </button>
-  </nav>
+  <!-- Bus Service Filter Modal (SG BusLeh Customization) -->
+  <div class="modal-overlay" id="filter-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="filter-modal-title">Filter Buses for Stop</h3>
+        <button onclick="closeFilterModal()" style="background: none; border: none; color: #fff; font-size: 16px; cursor: pointer;">&#10005;</button>
+      </div>
+      <div class="modal-body" id="filter-modal-body">
+        <!-- List of checkboxes for each service -->
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="selectAllFilter(true)">Show All</button>
+        <button class="btn-primary" onclick="saveFilterModal()">Save Filter</button>
+      </div>
+    </div>
+  </div>
 
   <script>
     const API_BASE = "https://blcsjvifiytbznwesmyx.supabase.co/functions/v1/lta_bot";
-    
-    // Telegram WebApp Initialization
+
     let tgUser = null;
     if (window.Telegram && window.Telegram.WebApp) {
       window.Telegram.WebApp.ready();
       window.Telegram.WebApp.expand();
       try {
-        window.Telegram.WebApp.setHeaderColor('#0f131a');
-        window.Telegram.WebApp.setBackgroundColor('#0f131a');
+        window.Telegram.WebApp.setHeaderColor('#e53935');
+        window.Telegram.WebApp.setBackgroundColor('#f5f6f8');
         tgUser = window.Telegram.WebApp.initDataUnsafe?.user;
       } catch (e) {}
     }
@@ -837,267 +702,190 @@
     // State
     let userLat = 1.3521;
     let userLon = 103.8198;
-    let hasGps = false;
-    let currentTab = 'nearby';
-    let countdownSec = 30;
-    let refreshTimer = null;
-    let expandedStops = new Set();
-    let localFavorites = [];
+    let currentView = 'nearby';
+    let map = null;
+    let userMarker = null;
+    let stopMarkers = [];
+    let nearbyStopsData = [];
+    let favoritesList = [];
+    let serviceFilters = {}; // stopCode -> Set of selected services
     let activeAlarm = null;
     let watchGpsId = null;
 
-    // Load Local Favorites
+    // Load Local Cache
     try {
-      localFavorites = JSON.parse(localStorage.getItem('sg_bus_favorites') || '[]');
+      favoritesList = JSON.parse(localStorage.getItem('sg_bus_fav_stops') || '[]');
+      serviceFilters = JSON.parse(localStorage.getItem('sg_bus_filters') || '{}');
     } catch (e) {
-      localFavorites = [];
+      favoritesList = [];
+      serviceFilters = {};
     }
 
-    // Web Audio Synthesizer (Zero asset dependency)
-    function playChime() {
-      try {
-        const AudioCtx = window.AudioContext || window.webkitAudioContext;
-        if (!AudioCtx) return;
-        const ctx = new AudioCtx();
-        const tones = [523.25, 659.25, 783.99];
-        tones.forEach((freq, idx) => {
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.15);
-          gain.gain.setValueAtTime(0.3, ctx.currentTime + idx * 0.15);
-          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.15 + 0.4);
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start(ctx.currentTime + idx * 0.15);
-          osc.stop(ctx.currentTime + idx * 0.15 + 0.45);
-        });
-      } catch (e) {
-        console.warn('Audio chime error:', e);
-      }
-    }
-
-    // Live SGT Clock
+    // Clock
     function updateClock() {
       const now = new Date();
-      const timeStr = now.toLocaleTimeString('en-SG', { timeZone: 'Asia/Singapore', hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      document.getElementById('sgt-clock').innerText = timeStr + ' SGT';
+      const timeStr = now.toLocaleTimeString('en-SG', { timeZone: 'Asia/Singapore', hour: '2-digit', minute: '2-digit' });
+      document.getElementById('header-clock').innerText = timeStr + ' SGT';
     }
     setInterval(updateClock, 1000);
     updateClock();
 
-    // 30s Auto Refresh
-    function startCountdown() {
-      clearInterval(refreshTimer);
-      countdownSec = 30;
-      document.getElementById('countdown-val').innerText = countdownSec;
-      refreshTimer = setInterval(() => {
-        countdownSec--;
-        if (countdownSec <= 0) {
-          countdownSec = 30;
-          if (currentTab === 'nearby') refreshNearbyArrivals();
-          else if (currentTab === 'favorites') refreshFavorites();
-        }
-        document.getElementById('countdown-val').innerText = countdownSec;
-      }, 1000);
+    // Leaflet Map Init
+    function initMap() {
+      if (map) return;
+      map = L.map('nearby-map', { zoomControl: false }).setView([userLat, userLon], 16);
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap'
+      }).addTo(map);
+
+      // User Marker (Red person icon matching BusLeh)
+      const userIcon = L.divIcon({
+        html: '<div class="user-avatar-marker">&#128694;</div>',
+        className: 'user-pin-wrap',
+        iconSize: [28, 28],
+        iconAnchor: [14, 14]
+      });
+      userMarker = L.marker([userLat, userLon], { icon: userIcon }).addTo(map);
     }
 
-    function manualRefresh() {
-      haptic('medium');
-      countdownSec = 30;
-      document.getElementById('countdown-val').innerText = countdownSec;
-      if (currentTab === 'nearby') {
-        fetchNearbyStops(true);
-      } else if (currentTab === 'favorites') {
-        refreshFavorites();
-      }
-    }
-
-    // Switch Tabs
-    function switchTab(tabId) {
+    // View Switcher
+    function switchView(viewName) {
       haptic('selection');
-      currentTab = tabId;
-      ['nearby', 'search', 'favorites'].forEach(t => {
-        document.getElementById('view-' + t).style.display = (t === tabId) ? 'block' : 'none';
-        const tabBtn = document.getElementById('tab-btn-' + t);
-        if (t === tabId) tabBtn.classList.add('active');
+      currentView = viewName;
+      ['fav', 'nearby', 'search', 'mrt'].forEach(v => {
+        document.getElementById('view-' + v).style.display = (v === viewName) ? (v === 'nearby' ? 'flex' : 'block') : 'none';
+        const tabBtn = document.getElementById('tab-' + v);
+        if (v === viewName) tabBtn.classList.add('active');
         else tabBtn.classList.remove('active');
       });
 
-      if (tabId === 'favorites') {
+      if (viewName === 'nearby') {
+        setTimeout(() => { if (map) map.invalidateSize(); }, 150);
+      } else if (viewName === 'fav') {
         renderFavoritesView();
       }
     }
 
-    // GPS
+    // GPS & Nearby Stops
     function initGPS() {
       if ('geolocation' in navigator) {
         navigator.geolocation.getCurrentPosition(
           pos => {
             userLat = pos.coords.latitude;
             userLon = pos.coords.longitude;
-            hasGps = true;
-            document.getElementById('gps-status').innerHTML = '&#128205; GPS Active';
+            updateUserPosition(userLat, userLon);
             fetchNearbyStops();
           },
           err => {
             console.warn('GPS error:', err);
-            document.getElementById('gps-status').innerHTML = '&#9888;&#65039; Default Location (Orchard)';
-            userLat = 1.3039;
-            userLon = 103.8315;
+            // Default Bukit Batok area (similar to screenshot)
+            userLat = 1.3590;
+            userLon = 103.7430;
+            updateUserPosition(userLat, userLon);
             fetchNearbyStops();
           },
           { enableHighAccuracy: true, timeout: 8000 }
         );
       } else {
-        userLat = 1.3039;
-        userLon = 103.8315;
         fetchNearbyStops();
       }
     }
 
-    // Fetch Nearby Stops
-    async function fetchNearbyStops(forceRefresh = false) {
-      try {
-        const res = await fetch(API_BASE + '/api/bus-nearby?lat=' + userLat + '&lon=' + userLon + '&limit=12');
-        const data = await res.json();
-        if (!data.ok || !data.stops || data.stops.length === 0) {
-          document.getElementById('nearby-list').innerHTML = '<div class="empty-state"><div class="empty-state-icon">&#128652;</div><h3>No Stops Nearby</h3><p>Try searching in the Search tab.</p></div>';
-          return;
-        }
+    function updateUserPosition(lat, lon) {
+      if (userMarker) userMarker.setLatLng([lat, lon]);
+      if (map) map.setView([lat, lon], 16);
+    }
 
-        document.getElementById('nearby-count').innerText = data.stops.length + ' stops found';
-        renderNearbyStops(data.stops);
+    function recenterUserGPS() {
+      haptic('medium');
+      if (map) map.setView([userLat, userLon], 16);
+    }
+
+    async function fetchNearbyStops() {
+      try {
+        const res = await fetch(API_BASE + '/api/bus-nearby?lat=' + userLat + '&lon=' + userLon + '&limit=15');
+        const data = await res.json();
+        if (data.ok && data.stops) {
+          nearbyStopsData = data.stops;
+          renderNearbyMapPins(data.stops);
+          renderNearbyList(data.stops);
+        }
       } catch (e) {
-        console.error('Error fetching nearby stops:', e);
+        console.error('Fetch nearby stops error:', e);
       }
     }
 
-    // Render Nearby Stops
-    function renderNearbyStops(stops) {
-      const container = document.getElementById('nearby-list');
+    // Render Map Pins with Labels matching SG BusLeh screenshot
+    function renderNearbyMapPins(stops) {
+      initMap();
+      stopMarkers.forEach(m => map.removeLayer(m));
+      stopMarkers = [];
+
+      stops.forEach(s => {
+        if (!s.latitude || !s.longitude) return;
+
+        const pinHtml = 
+          '<div class="bus-stop-pin" onclick="onMapPinClick(\'' + s.bus_stop_code + '\')">' +
+            '<div class="pin-label">' + s.description + '</div>' +
+            '<div class="pin-dot"></div>' +
+          '</div>';
+
+        const customIcon = L.divIcon({
+          html: pinHtml,
+          className: 'bus-pin-wrap',
+          iconSize: [120, 36],
+          iconAnchor: [60, 30]
+        });
+
+        const marker = L.marker([s.latitude, s.longitude], { icon: customIcon }).addTo(map);
+        stopMarkers.push(marker);
+      });
+    }
+
+    function onMapPinClick(stopCode) {
+      haptic('selection');
+      expandStopInList(stopCode, true);
+    }
+
+    // Render Nearby List matching SG BusLeh screenshot
+    function renderNearbyList(stops) {
+      const container = document.getElementById('nearby-stops-list');
       container.innerHTML = '';
 
       stops.forEach((s, idx) => {
-        const isFirst = (idx === 0);
-        if (isFirst) expandedStops.add(s.bus_stop_code);
-
-        const card = document.createElement('div');
-        card.className = 'stop-card' + (isFirst ? ' expanded' : '');
-        card.id = 'stop-card-' + s.bus_stop_code;
-
-        const isFav = isItemFavorited('bus', s.bus_stop_code);
-        const distText = s.dist_meters < 1000 ? Math.round(s.dist_meters) + 'm' : (s.dist_meters / 1000).toFixed(1) + 'km';
-
-        card.innerHTML = 
-          '<div class="stop-header" onclick="toggleStopExpansion(\'' + s.bus_stop_code + '\')">' +
-            '<div class="stop-title-group">' +
-              '<div class="stop-name">' +
-                '<span>' + s.description + '</span>' +
-                '<span class="stop-code-badge">' + s.bus_stop_code + '</span>' +
-              '</div>' +
-              '<div class="stop-sub">&#128723; ' + s.road_name + ' &#8226; &#128099; ' + distText + ' away</div>' +
-            '</div>' +
-            '<div class="stop-actions">' +
-              '<button class="icon-action-btn ' + (isFav ? 'active' : '') + '" id="fav-btn-' + s.bus_stop_code + '" onclick="toggleFav(event, \'bus\', \'' + s.bus_stop_code + '\', \'' + s.description.replace(/'/g, "") + ' (' + s.bus_stop_code + ')\')" title="Pin Stop">&#11088;</button>' +
-              '<button class="icon-action-btn" onclick="armAlightAlarm(event, \'' + s.bus_stop_code + '\', \'' + s.description.replace(/'/g, "") + '\', ' + s.latitude + ', ' + s.longitude + ')" title="Alight Alarm">&#128276;</button>' +
-            '</div>' +
-          '</div>' +
-          '<div class="bus-list" id="bus-list-' + s.bus_stop_code + '" style="display: ' + (isFirst ? 'flex' : 'none') + ';">' +
-            '<div style="font-size: 11px; color: var(--subtext); padding: 8px 0;">Loading live arrivals...</div>' +
-          '</div>';
-
-        container.appendChild(card);
-        if (isFirst) {
-          loadBusArrivals(s.bus_stop_code);
-        }
-      });
-    }
-
-    function toggleStopExpansion(stopCode) {
-      haptic('selection');
-      const listEl = document.getElementById('bus-list-' + stopCode);
-      const cardEl = document.getElementById('stop-card-' + stopCode);
-      if (!listEl) return;
-
-      const isExpanded = (listEl.style.display === 'flex');
-      if (isExpanded) {
-        listEl.style.display = 'none';
-        cardEl.classList.remove('expanded');
-        expandedStops.delete(stopCode);
-      } else {
-        listEl.style.display = 'flex';
-        cardEl.classList.add('expanded');
-        expandedStops.add(stopCode);
-        loadBusArrivals(stopCode);
-      }
-    }
-
-    async function loadBusArrivals(stopCode) {
-      const listEl = document.getElementById('bus-list-' + stopCode);
-      if (!listEl) return;
-
-      try {
-        const res = await fetch(API_BASE + '/api/bus-arrivals?stop=' + stopCode);
-        const data = await res.json();
-        if (!data.ok || !data.services || data.services.length === 0) {
-          listEl.innerHTML = '<div style="font-size: 11px; color: var(--subtext); padding: 6px 0;">No active buses operating currently.</div>';
-          return;
-        }
-        renderArrivalRows(listEl, stopCode, data.services);
-      } catch (e) {
-        listEl.innerHTML = '<div style="font-size: 11px; color: var(--danger); padding: 6px 0;">Failed to load live arrivals.</div>';
-      }
-    }
-
-    function refreshNearbyArrivals() {
-      expandedStops.forEach(code => {
-        loadBusArrivals(code);
-      });
-    }
-
-    function renderArrivalRows(container, stopCode, services) {
-      container.innerHTML = '';
-
-      services.forEach(svc => {
-        const next1 = svc.NextBus;
-        const next2 = svc.NextBus2;
-        const next3 = svc.NextBus3;
-
-        const pill1 = buildPill(next1);
-        const pill2 = buildPill(next2);
-        const pill3 = buildPill(next3);
+        const isFav = isStopFavorited(s.bus_stop_code);
+        
+        // Fix distance calculation (zero NaNkm away)
+        const d = s.distance !== undefined ? s.distance : (s.dist_meters !== undefined ? s.dist_meters : 0);
+        const distText = d < 1000 ? Math.round(d) + 'm' : (d / 1000).toFixed(1) + 'km';
 
         const row = document.createElement('div');
-        row.className = 'bus-row';
-        row.id = 'bus-row-' + stopCode + '-' + svc.ServiceNo;
-
-        const isSvcFav = isItemFavorited('bus_service', stopCode + '_' + svc.ServiceNo);
+        row.className = 'stop-item-row';
+        row.id = 'stop-row-' + s.bus_stop_code;
 
         row.innerHTML = 
-          '<div class="bus-main-bar" onclick="toggleRouteTracker(\'' + stopCode + '\', \'' + svc.ServiceNo + '\')">' +
-            '<div class="bus-id-group">' +
-              '<span class="service-badge">' + svc.ServiceNo + '</span>' +
-              '<span class="service-operator">' + (svc.Operator || 'BUS') + '</span>' +
+          '<div class="stop-main-header" onclick="toggleStopExpansion(\'' + s.bus_stop_code + '\')">' +
+            '<span class="chevron-icon">&#9660;</span>' +
+            '<div class="stop-details-col">' +
+              '<div class="stop-primary-name">' + s.description + '</div>' +
+              '<div class="stop-secondary-road">' + s.road_name + ' (' + s.bus_stop_code + ')</div>' +
             '</div>' +
-            '<div class="timings-group">' +
-              pill1 + pill2 + pill3 +
-            '</div>' +
-          '</div>' +
-          '<div class="bus-sub-bar">' +
-            '<span class="bus-dest">&#8627; to ' + formatDestination(next1 && next1.DestinationCode) + '</span>' +
-            '<div style="display: flex; gap: 8px;">' +
-              '<span onclick="toggleServiceFav(event, \'' + stopCode + '\', \'' + svc.ServiceNo + '\')" style="cursor: pointer; color: ' + (isSvcFav ? '#e3b341' : 'var(--subtext)') + ';">&#11088;</span>' +
-              '<span onclick="viewServiceFullRoute(\'' + svc.ServiceNo + '\')" style="cursor: pointer; color: var(--primary);">&#128269; Route</span>' +
+            '<div class="stop-trailing-group">' +
+              '<span class="stop-distance-badge">' + distText + '</span>' +
+              '<button class="kebab-menu-btn" onclick="openStopFilter(event, \'' + s.bus_stop_code + '\', \'' + s.description.replace(/'/g, "") + '\')" title="Filter Buses">&#8942;</button>' +
             '</div>' +
           '</div>' +
-          '<div class="route-tracker" id="tracker-' + stopCode + '-' + svc.ServiceNo + '">' +
-            '<div class="tracker-header">' +
-              '<span>&#128652; Where is my Bus? (Live Route Progress)</span>' +
+          '<div class="bus-arrivals-drawer" id="arrivals-drawer-' + s.bus_stop_code + '">' +
+            '<div class="stop-quick-actions">' +
+              '<button class="action-pill-btn ' + (isFav ? 'active' : '') + '" id="fav-btn-' + s.bus_stop_code + '" onclick="toggleFavoriteStop(event, \'' + s.bus_stop_code + '\', \'' + s.description.replace(/'/g, "") + ' (' + s.bus_stop_code + ')\')">' +
+                (isFav ? '&#11088; Saved' : '&#9734; Save Stop') +
+              '</button>' +
+              '<button class="action-pill-btn" onclick="openStopFilter(event, \'' + s.bus_stop_code + '\', \'' + s.description.replace(/'/g, "") + '\')">&#9881;&#65039; Filter Buses</button>' +
+              '<button class="action-pill-btn" onclick="armAlightAlarm(event, \'' + s.bus_stop_code + '\', \'' + s.description.replace(/'/g, "") + '\', ' + s.latitude + ', ' + s.longitude + ')">&#128276; Alight Alarm</button>' +
             '</div>' +
-            '<div class="bus-gps-status">' +
-              '<span class="bus-gps-pin">&#128205;</span>' +
-              '<span>Next bus: ' + (next1 && next1.EstimatedArrival ? formatEtaMinutes(next1.EstimatedArrival) : 'N/A') + ' ' + getBusTypeIcon(next1 && next1.Type) + ' (Approaching stop)</span>' +
+            '<div class="bus-services-list" id="services-list-' + s.bus_stop_code + '">' +
+              '<div style="font-size: 11px; color: var(--text-sub); padding: 8px 0;">Loading live arrivals...</div>' +
             '</div>' +
           '</div>';
 
@@ -1105,280 +893,220 @@
       });
     }
 
-    function buildPill(busObj) {
-      if (!busObj || !busObj.EstimatedArrival) {
-        return '<span class="arrival-pill load-none">--</span>';
-      }
-
-      const eta = formatEtaMinutes(busObj.EstimatedArrival);
-      let loadClass = 'load-sea';
-      if (busObj.Load === 'SDA') loadClass = 'load-sda';
-      else if (busObj.Load === 'LSD') loadClass = 'load-lsd';
-
-      const typeIcon = getBusTypeIcon(busObj.Type);
-      const wabIcon = (busObj.Feature === 'WAB') ? '♿' : '';
-
-      return '<span class="arrival-pill ' + loadClass + '">' +
-               eta +
-               '<span class="pill-icon">' + typeIcon + '</span>' +
-             '</span>';
-    }
-
-    function formatEtaMinutes(etaIso) {
-      if (!etaIso) return '--';
-      const diffMs = new Date(etaIso).getTime() - Date.now();
-      const diffMins = Math.round(diffMs / 60000);
-      if (diffMins <= 0) return 'Arr';
-      if (diffMins === 1) return '1m';
-      return diffMins + 'm';
-    }
-
-    function getBusTypeIcon(type) {
-      if (type === 'DD') return '&#128652;';
-      if (type === 'BD') return '&#128654;';
-      return '';
-    }
-
-    function formatDestination(destCode) {
-      if (!destCode) return 'Terminating Trip';
-      return 'Interchange (' + destCode + ')';
-    }
-
-    function toggleRouteTracker(stopCode, serviceNo) {
+    function toggleStopExpansion(stopCode) {
       haptic('selection');
-      const el = document.getElementById('tracker-' + stopCode + '-' + serviceNo);
-      if (el) el.classList.toggle('open');
+      expandStopInList(stopCode, false);
     }
 
-    async function viewServiceFullRoute(serviceNo) {
-      haptic('medium');
-      switchTab('search');
-      document.getElementById('bus-search-input').value = serviceNo;
-      document.getElementById('clear-search-btn').classList.add('show');
-      loadServiceRoute(serviceNo, 1);
-    }
+    function expandStopInList(stopCode, scrollIntoView = false) {
+      const row = document.getElementById('stop-row-' + stopCode);
+      if (!row) return;
 
-    let searchDebounceTimer = null;
-    function onSearchInput(val) {
-      const q = val.trim();
-      const clearBtn = document.getElementById('clear-search-btn');
-      if (q) clearBtn.classList.add('show');
-      else clearBtn.classList.remove('show');
-
-      clearTimeout(searchDebounceTimer);
-      if (!q) {
-        document.getElementById('search-results-area').innerHTML = '<div class="empty-state"><div class="empty-state-icon">&#128652;</div><h3>Search Singapore Buses</h3><p>Enter any 5-digit bus stop code, road name, or bus service number above.</p></div>';
-        return;
-      }
-
-      searchDebounceTimer = setTimeout(() => {
-        executeSearch(q);
-      }, 350);
-    }
-
-    function clearSearch() {
-      document.getElementById('bus-search-input').value = '';
-      document.getElementById('clear-search-btn').classList.remove('show');
-      onSearchInput('');
-    }
-
-    async function executeSearch(query) {
-      const area = document.getElementById('search-results-area');
-      area.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--subtext);">&#128269; Searching "' + query + '"...</div>';
-
-      try {
-        const res = await fetch(API_BASE + '/api/bus-search?q=' + encodeURIComponent(query));
-        const data = await res.json();
-        if (!data.ok) throw new Error('Search failed');
-        renderSearchResults(query, data.stops || [], data.services || []);
-      } catch (e) {
-        area.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--danger);">Search error. Please check your connection.</div>';
+      const isExpanded = row.classList.contains('expanded');
+      if (isExpanded && !scrollIntoView) {
+        row.classList.remove('expanded');
+      } else {
+        row.classList.add('expanded');
+        loadArrivalsForStop(stopCode);
+        if (scrollIntoView) {
+          row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
       }
     }
 
-    function renderSearchResults(query, stops, services) {
-      const area = document.getElementById('search-results-area');
-      area.innerHTML = '';
-
-      if (services.length > 0) {
-        const svc = services[0];
-        const svcCard = document.createElement('div');
-        svcCard.className = 'stop-card';
-        svcCard.innerHTML = 
-          '<div class="stop-header" onclick="loadServiceRoute(\'' + svc.service_no + '\', 1)">' +
-            '<div class="stop-title-group">' +
-              '<div class="stop-name">' +
-                '<span class="service-badge" style="font-size: 18px;">' + svc.service_no + '</span>' +
-                '<span>Bus Service Route</span>' +
-              '</div>' +
-              '<div class="stop-sub">' + (svc.operator || 'LTA') + ' &#8226; Direction 1 & 2 Itinerary</div>' +
-            '</div>' +
-            '<button class="cta-btn" style="margin: 0;">View Stops &#8594;</button>' +
-          '</div>';
-        area.appendChild(svcCard);
-      }
-
-      if (stops.length > 0) {
-        const title = document.createElement('div');
-        title.className = 'section-title';
-        title.innerHTML = '<span>Matching Bus Stops (' + stops.length + ')</span>';
-        area.appendChild(title);
-
-        stops.forEach(s => {
-          const card = document.createElement('div');
-          card.className = 'stop-card';
-          card.id = 'search-stop-' + s.bus_stop_code;
-          const isFav = isItemFavorited('bus', s.bus_stop_code);
-
-          card.innerHTML = 
-            '<div class="stop-header" onclick="toggleSearchStopExpansion(\'' + s.bus_stop_code + '\')">' +
-              '<div class="stop-title-group">' +
-                '<div class="stop-name">' +
-                  '<span>' + s.description + '</span>' +
-                  '<span class="stop-code-badge">' + s.bus_stop_code + '</span>' +
-                '</div>' +
-                '<div class="stop-sub">&#128723; ' + s.road_name + '</div>' +
-              '</div>' +
-              '<div class="stop-actions">' +
-                '<button class="icon-action-btn ' + (isFav ? 'active' : '') + '" onclick="toggleFav(event, \'bus\', \'' + s.bus_stop_code + '\', \'' + s.description.replace(/'/g, "") + ' (' + s.bus_stop_code + ')\')" title="Pin">&#11088;</button>' +
-                '<button class="icon-action-btn" onclick="armAlightAlarm(event, \'' + s.bus_stop_code + '\', \'' + s.description.replace(/'/g, "") + '\', ' + s.latitude + ', ' + s.longitude + ')" title="Alight Alarm">&#128276;</button>' +
-              '</div>' +
-            '</div>' +
-            '<div class="bus-list" id="search-bus-list-' + s.bus_stop_code + '" style="display: none;">' +
-              '<div style="font-size: 11px; color: var(--subtext); padding: 8px 0;">Loading arrivals...</div>' +
-            '</div>';
-          area.appendChild(card);
-        });
-      }
-
-      if (stops.length === 0 && services.length === 0) {
-        area.innerHTML = '<div class="empty-state"><div class="empty-state-icon">&#129300;</div><h3>No Results Found</h3><p>We couldn\'t find any stop or bus service matching "' + query + '".</p></div>';
-      }
-    }
-
-    function toggleSearchStopExpansion(stopCode) {
-      haptic('selection');
-      const listEl = document.getElementById('search-bus-list-' + stopCode);
-      const cardEl = document.getElementById('search-stop-' + stopCode);
+    // Load arrivals and apply custom bus service filter
+    async function loadArrivalsForStop(stopCode) {
+      const listEl = document.getElementById('services-list-' + stopCode) || document.getElementById('fav-services-' + stopCode);
       if (!listEl) return;
 
-      const isExpanded = (listEl.style.display === 'flex');
-      if (isExpanded) {
-        listEl.style.display = 'none';
-        cardEl.classList.remove('expanded');
-      } else {
-        listEl.style.display = 'flex';
-        cardEl.classList.add('expanded');
-        loadBusArrivalsIntoContainer(listEl, stopCode);
-      }
-    }
-
-    async function loadBusArrivalsIntoContainer(container, stopCode) {
       try {
         const res = await fetch(API_BASE + '/api/bus-arrivals?stop=' + stopCode);
         const data = await res.json();
         if (!data.ok || !data.services || data.services.length === 0) {
-          container.innerHTML = '<div style="font-size: 11px; color: var(--subtext); padding: 6px 0;">No active buses operating currently.</div>';
+          listEl.innerHTML = '<div style="font-size: 11px; color: var(--text-sub); padding: 6px 0;">No active buses operating right now.</div>';
           return;
         }
-        renderArrivalRows(container, stopCode, data.services);
+
+        renderServicesWithFilter(listEl, stopCode, data.services);
       } catch (e) {
-        container.innerHTML = '<div style="font-size: 11px; color: var(--danger); padding: 6px 0;">Failed to load live arrivals.</div>';
+        listEl.innerHTML = '<div style="font-size: 11px; color: var(--accent-red); padding: 6px 0;">Failed to fetch live timings.</div>';
       }
     }
 
-    async function loadServiceRoute(serviceNo, direction = 1) {
-      const area = document.getElementById('search-results-area');
-      area.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--subtext);">&#128269; Loading route for Bus ' + serviceNo + '...</div>';
+    function renderServicesWithFilter(container, stopCode, allServices) {
+      container.innerHTML = '';
+      const filterSet = serviceFilters[stopCode]; // Array or undefined
 
-      try {
-        const res = await fetch(API_BASE + '/api/bus-route?service=' + serviceNo + '&direction=' + direction);
-        const data = await res.json();
-        if (!data.ok || !data.stops || data.stops.length === 0) {
-          area.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--subtext);">No route data found for Bus ' + serviceNo + '.</div>';
-          return;
-        }
-        renderServiceRouteView(serviceNo, direction, data.serviceInfo || [], data.stops);
-      } catch (e) {
-        area.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--danger);">Failed to load route.</div>';
+      const displayList = (filterSet && filterSet.length > 0)
+        ? allServices.filter(s => filterSet.includes(String(s.ServiceNo)))
+        : allServices;
+
+      if (displayList.length === 0 && allServices.length > 0) {
+        container.innerHTML = 
+          '<div style="font-size: 11px; color: var(--text-sub); padding: 6px 0;">' +
+            'All services hidden by filter. <span style="color: var(--brand-red); font-weight: 700; cursor: pointer;" onclick="clearStopFilter(\'' + stopCode + '\')">Show All (' + allServices.length + ')</span>' +
+          '</div>';
+        return;
       }
-    }
 
-    function renderServiceRouteView(serviceNo, currentDir, serviceInfoList, stops) {
-      const area = document.getElementById('search-results-area');
-      area.innerHTML = '';
-
-      const firstStop = stops[0];
-      const lastStop = stops[stops.length - 1];
-
-      const routeCard = document.createElement('div');
-      routeCard.className = 'service-route-card';
-
-      routeCard.innerHTML = 
-        '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">' +
-          '<div style="display: flex; align-items: center; gap: 8px;">' +
-            '<span class="service-badge" style="font-size: 22px;">' + serviceNo + '</span>' +
-            '<div>' +
-              '<div style="font-size: 14px; font-weight: 700;">' + firstStop.desc + ' &#8594; ' + lastStop.desc + '</div>' +
-              '<div style="font-size: 11px; color: var(--subtext);">Total ' + stops.length + ' stops &#8226; ' + lastStop.distance + ' km</div>' +
+      displayList.forEach(svc => {
+        const card = document.createElement('div');
+        card.className = 'service-card';
+        card.innerHTML = 
+          '<div class="service-card-top">' +
+            '<span class="service-no-badge">' + svc.ServiceNo + '</span>' +
+            '<div class="pills-cluster">' +
+              buildTimingPill(svc.NextBus) +
+              buildTimingPill(svc.NextBus2) +
+              buildTimingPill(svc.NextBus3) +
             '</div>' +
           '</div>' +
-        '</div>' +
-        '<div class="route-toggle-bar">' +
-          '<button class="route-toggle-btn ' + (currentDir === 1 ? 'active' : '') + '" onclick="loadServiceRoute(\'' + serviceNo + '\', 1)">Direction 1</button>' +
-          '<button class="route-toggle-btn ' + (currentDir === 2 ? 'active' : '') + '" onclick="loadServiceRoute(\'' + serviceNo + '\', 2)">Direction 2</button>' +
-        '</div>' +
-        '<div class="schedule-grid">' +
-          '<div class="schedule-col"><h5>WEEKDAYS</h5><p>' + (firstStop.firstBus || '--') + ' - ' + (firstStop.lastBus || '--') + '</p></div>' +
-          '<div class="schedule-col"><h5>SATURDAYS</h5><p>' + (firstStop.satFirstBus || '--') + ' - ' + (firstStop.satLastBus || '--') + '</p></div>' +
-          '<div class="schedule-col"><h5>SUNDAYS / PH</h5><p>' + (firstStop.sunFirstBus || '--') + ' - ' + (firstStop.sunLastBus || '--') + '</p></div>' +
-        '</div>' +
-        '<div class="section-title"><span>Sequence of Stops</span></div>' +
-        '<div class="timeline-container" id="timeline-list"></div>';
+          '<div class="service-card-bottom">' +
+            '<span>&#8627; to Interchange (' + (svc.NextBus?.DestinationCode || '--') + ')</span>' +
+            '<span>' + (svc.Operator || 'BUS') + '</span>' +
+          '</div>';
 
-      area.appendChild(routeCard);
-
-      const timelineList = document.getElementById('timeline-list');
-      stops.forEach(s => {
-        const node = document.createElement('div');
-        node.className = 'timeline-node';
-        node.onclick = () => {
-          haptic('selection');
-          executeSearch(s.stopCode);
-        };
-        node.innerHTML = 
-          '<div class="node-name">' + s.seq + '. ' + s.desc + ' (' + s.stopCode + ')</div>' +
-          '<div class="node-sub">&#128723; ' + s.road + ' &#8226; ' + s.distance + ' km</div>';
-        timelineList.appendChild(node);
+        container.appendChild(card);
       });
     }
 
-    function isItemFavorited(type, value) {
-      return localFavorites.some(f => f.type === type && f.value === value);
+    function buildTimingPill(bus) {
+      if (!bus || !bus.EstimatedArrival) {
+        return '<span class="timing-pill load-none">--</span>';
+      }
+      const diffMs = new Date(bus.EstimatedArrival).getTime() - Date.now();
+      const diffMins = Math.round(diffMs / 60000);
+      const eta = diffMins <= 0 ? 'Arr' : diffMins + 'm';
+
+      let loadClass = 'load-sea';
+      if (bus.Load === 'SDA') loadClass = 'load-sda';
+      else if (bus.Load === 'LSD') loadClass = 'load-lsd';
+
+      const typeIcon = (bus.Type === 'DD') ? '&#128652;' : (bus.Type === 'BD' ? '&#128654;' : '');
+
+      return '<span class="timing-pill ' + loadClass + '">' + eta + ' ' + typeIcon + '</span>';
     }
 
-    async function toggleFav(event, type, value, label) {
+    // Bus Service Filter Modal (Requirement 5)
+    let currentFilterStopCode = '';
+    let currentFilterAvailableServices = [];
+
+    async function openStopFilter(event, stopCode, stopDesc) {
+      if (event) event.stopPropagation();
+      haptic('medium');
+      currentFilterStopCode = stopCode;
+
+      document.getElementById('filter-modal-title').innerText = 'Filter: ' + stopDesc;
+      const modalBody = document.getElementById('filter-modal-body');
+      modalBody.innerHTML = '<div style="font-size: 12px; color: var(--text-sub);">Loading bus services at stop...</div>';
+      document.getElementById('filter-modal').classList.add('open');
+
+      try {
+        const res = await fetch(API_BASE + '/api/bus-arrivals?stop=' + stopCode);
+        const data = await res.json();
+        const services = (data.services || []).map(s => String(s.ServiceNo));
+        currentFilterAvailableServices = services;
+
+        const activeFilter = serviceFilters[stopCode] || services; // by default all checked
+
+        modalBody.innerHTML = '';
+        services.forEach(svcNo => {
+          const isChecked = activeFilter.includes(svcNo);
+          const item = document.createElement('div');
+          item.className = 'filter-item';
+          item.innerHTML = 
+            '<span style="font-weight: 700; font-size: 14px;">Bus ' + svcNo + '</span>' +
+            '<input type="checkbox" value="' + svcNo + '" ' + (isChecked ? 'checked' : '') + ' style="width: 18px; height: 18px; accent-color: var(--brand-red);">'
+          item.onclick = (e) => {
+            if (e.target.tagName !== 'INPUT') {
+              const cb = item.querySelector('input');
+              cb.checked = !cb.checked;
+            }
+          };
+          modalBody.appendChild(item);
+        });
+      } catch (e) {
+        modalBody.innerHTML = '<div style="color: var(--accent-red);">Failed to load services.</div>';
+      }
+    }
+
+    function closeFilterModal() {
+      document.getElementById('filter-modal').classList.remove('open');
+    }
+
+    function selectAllFilter(checked) {
+      document.querySelectorAll('#filter-modal-body input[type="checkbox"]').forEach(cb => {
+        cb.checked = checked;
+      });
+    }
+
+    async function saveFilterModal() {
+      haptic('success');
+      const checkedBoxes = document.querySelectorAll('#filter-modal-body input[type="checkbox"]:checked');
+      const selected = Array.from(checkedBoxes).map(cb => cb.value);
+
+      serviceFilters[currentFilterStopCode] = selected;
+      localStorage.setItem('sg_bus_filters', JSON.stringify(serviceFilters));
+
+      // Sync metadata to Supabase if stop is favorited
+      if (tgUser?.id && isStopFavorited(currentFilterStopCode)) {
+        fetch(API_BASE + '/api/bus-favorites', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: tgUser.id,
+            action: 'update',
+            type: 'bus',
+            value: currentFilterStopCode,
+            metadata: { visible_services: selected }
+          })
+        }).catch(err => console.warn('Sync filter metadata error:', err));
+      }
+
+      closeFilterModal();
+      loadArrivalsForStop(currentFilterStopCode);
+    }
+
+    function clearStopFilter(stopCode) {
+      delete serviceFilters[stopCode];
+      localStorage.setItem('sg_bus_filters', JSON.stringify(serviceFilters));
+      loadArrivalsForStop(stopCode);
+    }
+
+    // Favorites & Bookmarking (Only Bus Stops per Requirement 4)
+    function isStopFavorited(stopCode) {
+      return favoritesList.some(f => f.value === stopCode);
+    }
+
+    async function toggleFavoriteStop(event, stopCode, label) {
       if (event) event.stopPropagation();
       haptic('medium');
 
-      const isFav = isItemFavorited(type, value);
+      const isFav = isStopFavorited(stopCode);
       const action = isFav ? 'remove' : 'add';
 
       if (action === 'add') {
-        localFavorites.unshift({ type, value, label, created_at: new Date().toISOString() });
+        favoritesList.unshift({ type: 'bus', value: stopCode, label: label, metadata: { visible_services: serviceFilters[stopCode] || [] } });
       } else {
-        localFavorites = localFavorites.filter(f => !(f.type === type && f.value === value));
+        favoritesList = favoritesList.filter(f => f.value !== stopCode);
       }
 
-      localStorage.setItem('sg_bus_favorites', JSON.stringify(localFavorites));
+      localStorage.setItem('sg_bus_fav_stops', JSON.stringify(favoritesList));
 
-      const btn = document.getElementById('fav-btn-' + value);
+      // Update button state
+      const btn = document.getElementById('fav-btn-' + stopCode);
       if (btn) {
-        if (action === 'add') btn.classList.add('active');
-        else btn.classList.remove('active');
+        if (action === 'add') {
+          btn.classList.add('active');
+          btn.innerHTML = '&#11088; Saved';
+        } else {
+          btn.classList.remove('active');
+          btn.innerHTML = '&#9734; Save Stop';
+        }
       }
 
-      if (tgUser && tgUser.id) {
+      // Sync with Supabase cloud
+      if (tgUser?.id) {
         try {
           await fetch(API_BASE + '/api/bus-favorites', {
             method: 'POST',
@@ -1386,96 +1114,83 @@
             body: JSON.stringify({
               userId: tgUser.id,
               action: action,
-              type: type,
-              value: value,
-              label: label
+              type: 'bus',
+              value: stopCode,
+              label: label,
+              metadata: { visible_services: serviceFilters[stopCode] || [] }
             })
           });
         } catch (e) {
-          console.warn('Sync favorites error:', e);
+          console.warn('Sync error:', e);
         }
       }
 
-      if (currentTab === 'favorites') {
-        renderFavoritesView();
+      if (currentView === 'fav') renderFavoritesView();
+    }
+
+    async function fetchFavoritesCloud() {
+      if (!tgUser?.id) return;
+      haptic('medium');
+      try {
+        const res = await fetch(API_BASE + '/api/bus-favorites?userId=' + tgUser.id);
+        const data = await res.json();
+        if (data.ok && data.favorites) {
+          favoritesList = data.favorites.filter(f => f.type === 'bus' || f.type === 'bus_stop');
+          localStorage.setItem('sg_bus_fav_stops', JSON.stringify(favoritesList));
+          
+          // Restore service filters from cloud metadata
+          data.favorites.forEach(f => {
+            if (f.metadata?.visible_services) {
+              serviceFilters[f.value] = f.metadata.visible_services;
+            }
+          });
+          localStorage.setItem('sg_bus_filters', JSON.stringify(serviceFilters));
+
+          renderFavoritesView();
+        }
+      } catch (e) {
+        console.error('Fetch cloud favs error:', e);
       }
     }
 
-    function toggleServiceFav(event, stopCode, serviceNo) {
-      if (event) event.stopPropagation();
-      const val = stopCode + '_' + serviceNo;
-      const label = 'Bus ' + serviceNo + ' @ ' + stopCode;
-      toggleFav(event, 'bus_service', val, label);
-    }
-
     function renderFavoritesView() {
-      const container = document.getElementById('favorites-list');
-      if (localFavorites.length === 0) {
-        container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">&#11088;</div><h3>No Favorites Pinned</h3><p>Tap the &#11088; button on any bus stop or bus line to save it here for 1-tap checks!</p></div>';
+      const container = document.getElementById('fav-stops-list');
+      if (favoritesList.length === 0) {
+        container.innerHTML = 
+          '<div class="empty-state">' +
+            '<h3>No Favorites Saved</h3>' +
+            '<p style="font-size: 12px; margin-top: 4px;">Tap &#11088; on any bus stop to save it here for instant 1-tap checks!</p>' +
+          '</div>';
         return;
       }
 
       container.innerHTML = '';
-      localFavorites.forEach(f => {
-        if (f.type === 'bus') {
-          const card = document.createElement('div');
-          card.className = 'stop-card expanded';
-          card.id = 'fav-stop-' + f.value;
-
-          card.innerHTML = 
-            '<div class="stop-header" onclick="toggleFavStopExpansion(\'' + f.value + '\')">' +
-              '<div class="stop-title-group">' +
-                '<div class="stop-name"><span>' + (f.label || f.value) + '</span></div>' +
-                '<div class="stop-sub">&#128723; Stop Code: ' + f.value + '</div>' +
-              '</div>' +
-              '<div class="stop-actions">' +
-                '<button class="icon-action-btn active" onclick="toggleFav(event, \'bus\', \'' + f.value + '\', \'' + f.label + '\')" title="Unpin">&#11088;</button>' +
-              '</div>' +
+      favoritesList.forEach(f => {
+        const card = document.createElement('div');
+        card.className = 'stop-item-row expanded';
+        card.innerHTML = 
+          '<div class="stop-main-header">' +
+            '<div class="stop-details-col">' +
+              '<div class="stop-primary-name">' + (f.label || f.value) + '</div>' +
+              '<div class="stop-secondary-road">Bus Stop Code: ' + f.value + '</div>' +
             '</div>' +
-            '<div class="bus-list" id="fav-bus-list-' + f.value + '">' +
-              '<div style="font-size: 11px; color: var(--subtext); padding: 6px 0;">Loading live arrivals...</div>' +
-            '</div>';
-          container.appendChild(card);
-          loadBusArrivalsIntoContainer(document.getElementById('fav-bus-list-' + f.value), f.value);
-        } else if (f.type === 'bus_service') {
-          const parts = f.value.split('_');
-          const stopCode = parts[0];
-          const svcNo = parts[1];
+            '<div class="stop-trailing-group">' +
+              '<button class="action-pill-btn active" onclick="toggleFavoriteStop(event, \'' + f.value + '\', \'' + f.label + '\')">&#11088; Unpin</button>' +
+              '<button class="action-pill-btn" onclick="openStopFilter(event, \'' + f.value + '\', \'' + (f.label || f.value).replace(/'/g, "") + '\')">&#9881;&#65039;</button>' +
+            '</div>' +
+          '</div>' +
+          '<div class="bus-arrivals-drawer" style="display: flex;">' +
+            '<div class="bus-services-list" id="fav-services-' + f.value + '">' +
+              '<div style="font-size: 11px; color: var(--text-sub); padding: 6px 0;">Loading live timings...</div>' +
+            '</div>' +
+          '</div>';
 
-          const card = document.createElement('div');
-          card.className = 'stop-card';
-          card.innerHTML = 
-            '<div class="stop-header" onclick="viewServiceFullRoute(\'' + svcNo + '\')">' +
-              '<div class="stop-title-group">' +
-                '<div class="stop-name">' +
-                  '<span class="service-badge">' + svcNo + '</span>' +
-                  '<span>Stop ' + stopCode + '</span>' +
-                '</div>' +
-                '<div class="stop-sub">' + f.label + '</div>' +
-              '</div>' +
-              '<div class="stop-actions">' +
-                '<button class="icon-action-btn active" onclick="toggleFav(event, \'bus_service\', \'' + f.value + '\', \'' + f.label + '\')">&#11088;</button>' +
-              '</div>' +
-            '</div>';
-          container.appendChild(card);
-        }
+        container.appendChild(card);
+        loadArrivalsForStop(f.value);
       });
     }
 
-    function toggleFavStopExpansion(stopCode) {
-      const el = document.getElementById('fav-bus-list-' + stopCode);
-      if (el) {
-        el.style.display = (el.style.display === 'flex') ? 'none' : 'flex';
-      }
-    }
-
-    function refreshFavorites() {
-      haptic('medium');
-      if (currentTab === 'favorites') {
-        renderFavoritesView();
-      }
-    }
-
+    // Alighting Alarm with Telegram Chat Delivery (Requirement 6)
     function armAlightAlarm(event, stopCode, stopName, lat, lon) {
       if (event) event.stopPropagation();
       haptic('warning');
@@ -1489,19 +1204,18 @@
         triggered: false
       };
 
-      const banner = document.getElementById('alarm-banner');
-      document.getElementById('alarm-stop-name').innerText = 'Alighting Alarm: ' + stopName;
-      document.getElementById('alarm-distance-txt').innerText = 'Target stop: ' + stopCode + ' (Trigger radius: 500m)';
-      banner.classList.add('active');
+      document.getElementById('alarm-banner-sub').innerText = 'Target: ' + stopName + ' (' + stopCode + ') [Radius: 500m]';
+      document.getElementById('alarm-banner').classList.add('active');
 
       if (watchGpsId) navigator.geolocation.clearWatch(watchGpsId);
       watchGpsId = navigator.geolocation.watchPosition(
-        onAlarmPositionUpdate,
-        err => console.warn('Alarm GPS watch error:', err),
+        onAlarmGPSUpdate,
+        err => console.warn('Alarm GPS error:', err),
         { enableHighAccuracy: true, maximumAge: 3000 }
       );
 
-      if (tgUser && tgUser.id) {
+      // Send confirmation to Telegram chat via API
+      if (tgUser?.id) {
         fetch(API_BASE + '/api/bus-alight', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1514,37 +1228,51 @@
             destLon: lon,
             thresholdMeters: 500
           })
-        }).catch(err => console.warn('Sync alarm error:', err));
+        }).catch(e => console.warn('Alarm sync error:', e));
       }
 
-      alert('🔔 Alighting alarm armed for ' + stopName + ' (' + stopCode + ')! You will receive sound and haptic alerts 500m before your stop.');
+      alert('🔔 Alighting alarm armed for ' + stopName + '!
+
+A confirmation has also been sent to your Telegram chat.');
     }
 
-    function onAlarmPositionUpdate(pos) {
+    function onAlarmGPSUpdate(pos) {
       if (!activeAlarm || activeAlarm.triggered) return;
-
-      const curLat = pos.coords.latitude;
-      const curLon = pos.coords.longitude;
-      const dist = computeDistanceMeters(curLat, curLon, activeAlarm.lat, activeAlarm.lon);
-
-      document.getElementById('alarm-distance-txt').innerText = Math.round(dist) + 'm away from destination';
+      const dist = computeDistMeters(pos.coords.latitude, pos.coords.longitude, activeAlarm.lat, activeAlarm.lon);
+      document.getElementById('alarm-banner-sub').innerText = Math.round(dist) + 'm away from destination';
 
       if (dist <= activeAlarm.thresholdMeters) {
         activeAlarm.triggered = true;
-        triggerAlarmArrival();
+        triggerArrivalAlert(dist);
       }
     }
 
-    function triggerAlarmArrival() {
-      playChime();
+    function triggerArrivalAlert(dist) {
       haptic('warning');
       haptic('success');
-      alert('🚨 WAKE UP! ARRIVING AT ' + activeAlarm.stopName.toUpperCase() + '!\n\nYou are within 500m of your destination bus stop.');
+
+      // Send Telegram wake-up message to chat
+      if (tgUser?.id) {
+        fetch(API_BASE + '/api/bus-alight-trigger', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: tgUser.id,
+            chatId: tgUser.id,
+            destStopCode: activeAlarm.stopCode,
+            destName: activeAlarm.stopName,
+            distance: dist
+          })
+        }).catch(e => console.warn('Trigger sync error:', e));
+      }
+
+      alert('🚨 WAKE UP! ARRIVING AT ' + activeAlarm.stopName.toUpperCase() + '!
+
+You are within 500m of your stop.');
       cancelActiveAlarm();
     }
 
     function cancelActiveAlarm() {
-      haptic('light');
       activeAlarm = null;
       if (watchGpsId) {
         navigator.geolocation.clearWatch(watchGpsId);
@@ -1553,38 +1281,105 @@
       document.getElementById('alarm-banner').classList.remove('active');
     }
 
-    function computeDistanceMeters(lat1, lon1, lat2, lon2) {
+    function computeDistMeters(lat1, lon1, lat2, lon2) {
       const R = 6371e3;
       const phi1 = lat1 * Math.PI / 180;
       const phi2 = lat2 * Math.PI / 180;
-      const deltaPhi = (lat2 - lat1) * Math.PI / 180;
-      const deltaLambda = (lon2 - lon1) * Math.PI / 180;
-      const a = Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
-                Math.cos(phi1) * Math.cos(phi2) *
-                Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      return R * c;
+      const dPhi = (lat2 - lat1) * Math.PI / 180;
+      const dLam = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(dPhi/2)**2 + Math.cos(phi1)*Math.cos(phi2)*Math.sin(dLam/2)**2;
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     }
 
-    function handleDeepLink() {
-      const params = new URLSearchParams(window.location.search);
-      const stopParam = params.get('stop');
-      const svcParam = params.get('service');
+    // Search View Logic
+    let searchTimer = null;
+    function onSearchInput(val) {
+      clearTimeout(searchTimer);
+      const q = val.trim();
+      if (!q) {
+        document.getElementById('search-results-list').innerHTML = '';
+        return;
+      }
+      searchTimer = setTimeout(async () => {
+        const area = document.getElementById('search-results-list');
+        area.innerHTML = '<div style="padding: 10px; color: var(--text-sub);">Searching...</div>';
+        try {
+          const res = await fetch(API_BASE + '/api/bus-search?q=' + encodeURIComponent(q));
+          const data = await res.json();
+          renderSearchResults(data.stops || []);
+        } catch (e) {
+          area.innerHTML = '<div style="color: var(--accent-red);">Search failed.</div>';
+        }
+      }, 300);
+    }
 
+    function renderSearchResults(stops) {
+      const container = document.getElementById('search-results-list');
+      if (stops.length === 0) {
+        container.innerHTML = '<div class="empty-state"><p>No bus stops found.</p></div>';
+        return;
+      }
+      container.innerHTML = '';
+      stops.forEach(s => {
+        const row = document.createElement('div');
+        row.className = 'stop-item-row';
+        row.id = 'stop-row-' + s.bus_stop_code;
+        row.innerHTML = 
+          '<div class="stop-main-header" onclick="toggleStopExpansion(\'' + s.bus_stop_code + '\')">' +
+            '<span class="chevron-icon">&#9660;</span>' +
+            '<div class="stop-details-col">' +
+              '<div class="stop-primary-name">' + s.description + '</div>' +
+              '<div class="stop-secondary-road">' + s.road_name + ' (' + s.bus_stop_code + ')</div>' +
+            '</div>' +
+          '</div>' +
+          '<div class="bus-arrivals-drawer" id="arrivals-drawer-' + s.bus_stop_code + '">' +
+            '<div class="stop-quick-actions">' +
+              '<button class="action-pill-btn" onclick="toggleFavoriteStop(event, \'' + s.bus_stop_code + '\', \'' + s.description.replace(/'/g, "") + ' (' + s.bus_stop_code + ')\')">&#11088; Save Stop</button>' +
+              '<button class="action-pill-btn" onclick="openStopFilter(event, \'' + s.bus_stop_code + '\', \'' + s.description.replace(/'/g, "") + '\')">&#9881;&#65039; Filter</button>' +
+              '<button class="action-pill-btn" onclick="armAlightAlarm(event, \'' + s.bus_stop_code + '\', \'' + s.description.replace(/'/g, "") + '\', ' + s.latitude + ', ' + s.longitude + ')">&#128276; Alarm</button>' +
+            '</div>' +
+            '<div class="bus-services-list" id="services-list-' + s.bus_stop_code + '">' +
+              '<div style="font-size: 11px; color: var(--text-sub); padding: 8px 0;">Loading arrivals...</div>' +
+            '</div>' +
+          '</div>';
+
+        container.appendChild(row);
+      });
+    }
+
+    function manualRefresh() {
+      haptic('medium');
+      if (currentView === 'nearby') fetchNearbyStops();
+      else if (currentView === 'fav') fetchFavoritesCloud();
+    }
+
+    // Auto Refresh cycle (30s)
+    setInterval(() => {
+      if (currentView === 'nearby') {
+        document.querySelectorAll('.stop-item-row.expanded').forEach(r => {
+          const code = r.id.replace('stop-row-', '');
+          loadArrivalsForStop(code);
+        });
+      } else if (currentView === 'fav') {
+        favoritesList.forEach(f => loadArrivalsForStop(f.value));
+      }
+    }, 30000);
+
+    // Deep Linking
+    function handleDeepLink() {
+      const p = new URLSearchParams(window.location.search);
+      const stopParam = p.get('stop');
       if (stopParam) {
-        switchTab('search');
-        document.getElementById('bus-search-input').value = stopParam;
-        document.getElementById('clear-search-btn').classList.add('show');
-        executeSearch(stopParam);
-      } else if (svcParam) {
-        viewServiceFullRoute(svcParam);
+        switchView('search');
+        document.getElementById('search-input').value = stopParam;
+        onSearchInput(stopParam);
       }
     }
 
     window.addEventListener('DOMContentLoaded', () => {
       initGPS();
-      startCountdown();
       handleDeepLink();
+      if (tgUser?.id) fetchFavoritesCloud();
     });
   </script>
 </body>
