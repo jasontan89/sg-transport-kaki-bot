@@ -6,7 +6,7 @@ import {
   findDirectBusRoutes, findOneTransferBusRoutes, getMRTSubscriptions, toggleMRTSubscription,
   setAllMRTSubscriptions, getAllSubscribersForLine, getMRTAlertState, updateMRTAlertState,
   getBusStopByCode, searchBusStops, createAlightingAlarm, getActiveAlightingAlarm,
-  updateAlightingTelemetry, cancelAlightingAlarm
+  updateAlightingTelemetry, cancelAlightingAlarm, getBusRoute, getBusService
 } from "./db.ts";
 import { ERP_CORRIDORS, ERP_GANTRIES, getCurrentERPRate, calculateVehicleRate, searchERPGantries, getGantriesByCorridor, getSGTHourAndMinute } from "./erp_data.ts";
 
@@ -220,10 +220,11 @@ async function safeEditOrSend(ctx: any, text: string, keyboard?: InlineKeyboard,
 
 function getPersistentAppKeyboard() {
   const superMapUrl = "https://jasontan89.github.io/sg-transport-kaki-bot/super-map.html";
+  const busAppUrl = "https://jasontan89.github.io/sg-transport-kaki-bot/bus-app.html";
   return new Keyboard()
     .requestLocation("📍 Instant GPS Scan")
-    .webApp("🗺️ Super-Map App", superMapUrl).row()
-    .text("🚌 Bus Arrivals")
+    .webApp("🚌 BusLeh App", busAppUrl).row()
+    .webApp("🗺️ Super-Map App", superMapUrl)
     .text("🚆 MRT Status & Times").row()
     .text("🚗 Carparks & ERP")
     .text("⭐ My Saved Stops")
@@ -233,7 +234,9 @@ function getPersistentAppKeyboard() {
 
 function getMainMenuKeyboard() {
   const superMapUrl = "https://jasontan89.github.io/sg-transport-kaki-bot/super-map.html";
+  const busAppUrl = "https://jasontan89.github.io/sg-transport-kaki-bot/bus-app.html";
   return new InlineKeyboard()
+    .webApp("🚌 Launch SG BusLeh WebApp", busAppUrl).row()
     .webApp("🗺️ All-in-One Transit Super-Map", superMapUrl).row()
     .text("🚌 Public Transport", "cat_transport")
     .text("🚗 Drivers & Roads", "cat_driving").row()
@@ -500,9 +503,20 @@ async function renderBusArrivals(ctx: any, messageId: number | null, stopCode: s
     message += `━━━━━━━━━━━━━━━━━━━━━\n`;
     message += `🟢 Seats  🟡 Standing  🔴 Crowded  •  🚍 Double Deck`;
 
+    const userId = ctx.from?.id;
+    let isFavorited = false;
+    if (userId) {
+      const userFavs = await getFavorites(userId);
+      isFavorited = (userFavs || []).some((f: any) => (f.type === 'bus' || f.type === 'bus_stop') && f.value === stopCode);
+    }
+    const favBtnText = isFavorited ? "⭐ Saved (Tap to Remove)" : "⭐ Save to Favorites";
+    const favAction = isFavorited ? `unfav_bus_${stopCode}` : `fav_bus_${stopCode}`;
+    const busAppUrl = `https://jasontan89.github.io/sg-transport-kaki-bot/bus-app.html?stop=${stopCode}`;
+
     const keyboard = new InlineKeyboard()
       .text("🔄 Refresh", `get_bus_${stopCode}`)
-      .text("⭐ Save", `fav_bus_${stopCode}`).row()
+      .text(favBtnText, favAction).row()
+      .webApp("📱 Open in BusLeh App", busAppUrl).row()
       .text("🔔 Set Alight Alarm for This Stop", `alight_set_${stopCode}`).row();
 
     if (stopInfo?.latitude && stopInfo?.longitude) {
@@ -2777,6 +2791,26 @@ bot.command(["supermap", "map", "transitmap"], async (ctx) => {
   );
 });
 
+bot.command(["busleh", "busapp"], async (ctx) => {
+  const busAppUrl = "https://jasontan89.github.io/sg-transport-kaki-bot/bus-app.html";
+  const keyboard = new InlineKeyboard()
+    .webApp("🚌 Launch SG BusLeh App", busAppUrl).row()
+    .text("🔙 Back to Main Menu", "menu_main");
+
+  await ctx.reply(
+    "🚌 <b>SG BusLeh WebApp Companion 🇸🇬</b>\n\n" +
+    "Your dedicated full-screen bus companion inside Telegram:\n\n" +
+    "• 📍 <b>Nearby Stops</b>: Instant GPS scan for closest stops with walk meters\n" +
+    "• ⏱️ <b>Live Bus Arrivals</b>: Official LTA countdowns with seats/standing badges\n" +
+    "• 🚍 <b>Double Deckers & WAB</b>: Bus vehicle icons & accessibility indicators\n" +
+    "• 🗺️ <b>'Where is my Bus?'</b>: Tap any service to track approaching buses along the route\n" +
+    "• ⭐ <b>Synced Favorites</b>: Pin your daily stops and specific bus services\n" +
+    "• 🔔 <b>Dual Alighting Alarm</b>: In-app sound/haptic chime + background Telegram alert\n\n" +
+    "👇 <i>Tap below to launch the app!</i>",
+    { parse_mode: "HTML", reply_markup: keyboard }
+  );
+});
+
 bot.on("message:location", async (ctx) => {
   const { latitude, longitude } = ctx.message.location;
 
@@ -4161,7 +4195,7 @@ bot.callbackQuery(/^fav_(bus|cam)_(.+)$/, async (ctx) => {
       .from('lta_bus_stops')
       .select('description, road_name')
       .eq('bus_stop_code', value)
-      .single();
+      .maybeSingle();
     if (stopInfo?.description) {
       const isMrt = (stopInfo.description || '').toLowerCase().includes('stn');
       const icon = isMrt ? '🚆' : '🚏';
@@ -4172,8 +4206,27 @@ bot.callbackQuery(/^fav_(bus|cam)_(.+)$/, async (ctx) => {
   const success = await addFavorite(userId, type, value, label);
   if (success) {
     await ctx.answerCallbackQuery({ text: `⭐ Saved ${label} to favorites!`, show_alert: true }).catch(() => {});
+    if (type === 'bus') {
+      await renderBusArrivals(ctx, ctx.callbackQuery.message?.message_id || null, value, true);
+    }
   } else {
-    await ctx.answerCallbackQuery({ text: "Failed to save favorite." }).catch(() => {});
+    await ctx.answerCallbackQuery({ text: "❌ Failed to save favorite. Please try again." }).catch(() => {});
+  }
+});
+
+bot.callbackQuery(/^unfav_(bus|cam)_(.+)$/, async (ctx) => {
+  const type = ctx.match[1];
+  const value = String(ctx.match[2]);
+  const userId = ctx.from.id;
+
+  const success = await removeFavorite(userId, type, value);
+  if (success) {
+    await ctx.answerCallbackQuery({ text: `🗑️ Removed from favorites!`, show_alert: true }).catch(() => {});
+    if (type === 'bus') {
+      await renderBusArrivals(ctx, ctx.callbackQuery.message?.message_id || null, value, true);
+    }
+  } else {
+    await ctx.answerCallbackQuery({ text: "❌ Failed to remove favorite." }).catch(() => {});
   }
 });
 
@@ -4182,6 +4235,18 @@ const handleUpdate = webhookCallback(bot, "std/http");
 Deno.serve(async (req) => {
   try {
     const url = new URL(req.url);
+
+    // Handle CORS preflight for all endpoints
+    if (req.method === "OPTIONS") {
+      return new Response(null, {
+        status: 204,
+        headers: {
+          "access-control-allow-origin": "*",
+          "access-control-allow-methods": "GET, POST, OPTIONS",
+          "access-control-allow-headers": "*"
+        }
+      });
+    }
 
     // Handle Telegram WebApp Interactive Map
     if (req.method === "GET") {
@@ -4430,10 +4495,140 @@ Deno.serve(async (req) => {
         }
       }
 
+      // 6. Bus Nearby Stops API
+      if (url.pathname.endsWith("/api/bus-nearby") || url.pathname.endsWith("/api/bus/nearby")) {
+        try {
+          const lat = parseFloat(url.searchParams.get("lat") || "1.3521");
+          const lon = parseFloat(url.searchParams.get("lon") || "103.8198");
+          const limit = parseInt(url.searchParams.get("limit") || "12", 10);
+          const stops = await getNearbyStops(lat, lon, limit);
+          return new Response(JSON.stringify({ ok: true, stops }), {
+            headers: {
+              "content-type": "application/json",
+              "access-control-allow-origin": "*"
+            }
+          });
+        } catch (e: any) {
+          return new Response(JSON.stringify({ error: e.message }), {
+            status: 500,
+            headers: { "content-type": "application/json", "access-control-allow-origin": "*" }
+          });
+        }
+      }
+
+      // 7. Bus Arrivals API
+      if (url.pathname.endsWith("/api/bus-arrivals") || url.pathname.endsWith("/api/bus/arrivals")) {
+        try {
+          const stop = (url.searchParams.get("stop") || "").trim();
+          if (!stop) {
+            return new Response(JSON.stringify({ error: "Missing stop parameter" }), {
+              status: 400,
+              headers: { "content-type": "application/json", "access-control-allow-origin": "*" }
+            });
+          }
+          const [data, stopInfo] = await Promise.all([
+            fetchBusArrival(stop).catch(() => ({ Services: [] })),
+            getBusStopByCode(stop).catch(() => null)
+          ]);
+          return new Response(JSON.stringify({
+            ok: true,
+            stopCode: stop,
+            stopInfo,
+            services: data.Services || []
+          }), {
+            headers: {
+              "content-type": "application/json",
+              "access-control-allow-origin": "*"
+            }
+          });
+        } catch (e: any) {
+          return new Response(JSON.stringify({ error: e.message }), {
+            status: 500,
+            headers: { "content-type": "application/json", "access-control-allow-origin": "*" }
+          });
+        }
+      }
+
+      // 8. Bus Search API
+      if (url.pathname.endsWith("/api/bus-search") || url.pathname.endsWith("/api/bus/search")) {
+        try {
+          const q = (url.searchParams.get("q") || "").trim();
+          const [stops, services] = await Promise.all([
+            searchBusStops(q, 15).catch(() => []),
+            getBusService(q).catch(() => [])
+          ]);
+          return new Response(JSON.stringify({
+            ok: true,
+            query: q,
+            stops,
+            services
+          }), {
+            headers: {
+              "content-type": "application/json",
+              "access-control-allow-origin": "*"
+            }
+          });
+        } catch (e: any) {
+          return new Response(JSON.stringify({ error: e.message }), {
+            status: 500,
+            headers: { "content-type": "application/json", "access-control-allow-origin": "*" }
+          });
+        }
+      }
+
+      // 9. Bus Route Sequence API
+      if (url.pathname.endsWith("/api/bus-route") || url.pathname.endsWith("/api/bus/route")) {
+        try {
+          const service = (url.searchParams.get("service") || "").trim();
+          const direction = parseInt(url.searchParams.get("direction") || "1", 10);
+          const [stops, serviceInfo] = await Promise.all([
+            getBusRoute(service, direction).catch(() => []),
+            getBusService(service).catch(() => [])
+          ]);
+          return new Response(JSON.stringify({
+            ok: true,
+            serviceNo: service,
+            direction,
+            serviceInfo,
+            stops
+          }), {
+            headers: {
+              "content-type": "application/json",
+              "access-control-allow-origin": "*"
+            }
+          });
+        } catch (e: any) {
+          return new Response(JSON.stringify({ error: e.message }), {
+            status: 500,
+            headers: { "content-type": "application/json", "access-control-allow-origin": "*" }
+          });
+        }
+      }
+
+      // 10. Bus Favorites GET API
+      if (url.pathname.endsWith("/api/bus-favorites") || url.pathname.endsWith("/api/bus/favorites")) {
+        try {
+          const userId = parseInt(url.searchParams.get("userId") || "0", 10);
+          const favs = userId ? await getFavorites(userId) : [];
+          return new Response(JSON.stringify({ ok: true, favorites: favs }), {
+            headers: {
+              "content-type": "application/json",
+              "access-control-allow-origin": "*"
+            }
+          });
+        } catch (e: any) {
+          return new Response(JSON.stringify({ error: e.message }), {
+            status: 500,
+            headers: { "content-type": "application/json", "access-control-allow-origin": "*" }
+          });
+        }
+      }
+
       // Handle Registering Native Telegram Slash Commands
       if (url.pathname.endsWith("/api/setup-commands")) {
         try {
           const commands = [
+            { command: "busleh", description: "🚌 Dedicated full-screen SG BusLeh WebApp" },
             { command: "supermap", description: "🗺️ All-in-one live transit radar map (ERP, Cams, Incidents, Taxis, EV)" },
             { command: "status", description: "🚆 Real-time MRT line disruption status" },
             { command: "firstlast", description: "🌙 First & last train timetables" },
@@ -4487,6 +4682,73 @@ Deno.serve(async (req) => {
               "content-type": "application/json",
               "access-control-allow-origin": "*"
             }
+          });
+        }
+      }
+    }
+
+    // Handle Custom POST APIs
+    if (req.method === "POST") {
+      if (url.pathname.endsWith("/api/bus-favorites") || url.pathname.endsWith("/api/bus/favorites")) {
+        try {
+          const body = await req.json();
+          const userId = parseInt(body.userId, 10);
+          const action = body.action;
+          const type = body.type || "bus";
+          const value = String(body.value);
+          const label = String(body.label || value);
+
+          if (!userId || !value) {
+            return new Response(JSON.stringify({ error: "Missing required fields" }), {
+              status: 400,
+              headers: { "content-type": "application/json", "access-control-allow-origin": "*" }
+            });
+          }
+
+          if (action === "add") {
+            await addFavorite(userId, type, value, label);
+          } else if (action === "remove") {
+            await removeFavorite(userId, type, value);
+          }
+
+          const updated = await getFavorites(userId);
+          return new Response(JSON.stringify({ ok: true, favorites: updated }), {
+            headers: { "content-type": "application/json", "access-control-allow-origin": "*" }
+          });
+        } catch (e: any) {
+          return new Response(JSON.stringify({ error: e.message }), {
+            status: 500,
+            headers: { "content-type": "application/json", "access-control-allow-origin": "*" }
+          });
+        }
+      }
+
+      if (url.pathname.endsWith("/api/bus-alight") || url.pathname.endsWith("/api/bus/alight")) {
+        try {
+          const body = await req.json();
+          const userId = parseInt(body.userId, 10);
+          const chatId = parseInt(body.chatId, 10) || userId;
+          const destStopCode = String(body.destStopCode || "");
+          const destName = String(body.destName || destStopCode);
+          const destLat = parseFloat(body.destLat);
+          const destLon = parseFloat(body.destLon);
+          const thresholdMeters = parseInt(body.thresholdMeters, 10) || 500;
+
+          if (!userId || !destStopCode || isNaN(destLat) || isNaN(destLon)) {
+            return new Response(JSON.stringify({ error: "Invalid alighting parameters" }), {
+              status: 400,
+              headers: { "content-type": "application/json", "access-control-allow-origin": "*" }
+            });
+          }
+
+          const alarm = await createAlightingAlarm(userId, chatId, destStopCode, destName, destLat, destLon, thresholdMeters);
+          return new Response(JSON.stringify({ ok: true, alarm }), {
+            headers: { "content-type": "application/json", "access-control-allow-origin": "*" }
+          });
+        } catch (e: any) {
+          return new Response(JSON.stringify({ error: e.message }), {
+            status: 500,
+            headers: { "content-type": "application/json", "access-control-allow-origin": "*" }
           });
         }
       }

@@ -32,6 +32,13 @@ if (envVars.LTA_ACCOUNT_KEY) {
   );
 }
 
+if (envVars.SUPABASE_URL) {
+  db = db.replace(
+    'const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";',
+    `const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "${envVars.SUPABASE_URL}";`
+  );
+}
+
 if (envVars.SUPABASE_ANON_KEY) {
   db = db.replace(
     'const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";',

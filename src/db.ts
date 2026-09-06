@@ -46,34 +46,35 @@ export async function getAllTaxiStands() {
   return data || [];
 }
 
-export async function addFavorite(user_id: number, type: string, value: string, label: string) {
-  const { data, error } = await supabase
-    .from('favorites')
+export async function addFavorite(user_id: number, type: string, value: string, label: string): Promise<boolean> {
+  const { error } = await supabase
+    .from('lta_favorites')
     .upsert({ user_id, type, value, label }, { onConflict: 'user_id,type,value' });
 
   if (error) {
     console.error("Error adding favorite:", error);
-    throw error;
+    return false;
   }
-  return data;
+  return true;
 }
 
 export async function getFavorites(user_id: number) {
   const { data, error } = await supabase
-    .from('favorites')
+    .from('lta_favorites')
     .select('*')
-    .eq('user_id', user_id);
+    .eq('user_id', user_id)
+    .order('created_at', { ascending: false });
 
   if (error) {
     console.error("Error getting favorites:", error);
     return [];
   }
-  return data;
+  return data || [];
 }
 
-export async function removeFavorite(user_id: number, type: string, value: string) {
-  const { data, error } = await supabase
-    .from('favorites')
+export async function removeFavorite(user_id: number, type: string, value: string): Promise<boolean> {
+  const { error } = await supabase
+    .from('lta_favorites')
     .delete()
     .eq('user_id', user_id)
     .eq('type', type)
@@ -81,9 +82,9 @@ export async function removeFavorite(user_id: number, type: string, value: strin
 
   if (error) {
     console.error("Error removing favorite:", error);
-    throw error;
+    return false;
   }
-  return data;
+  return true;
 }
 
 // Journey Planner RPC helpers
@@ -326,6 +327,68 @@ export async function cancelAlightingAlarm(userId: number) {
     console.error("Error cancelling alighting alarm:", error);
   }
   return data;
+}
+
+// ==========================================
+// Bus Route & Service Queries
+// ==========================================
+
+export async function getBusRoute(serviceNo: string, direction: number = 1) {
+  const cleanSvc = (serviceNo || "").trim().toUpperCase();
+  const { data: routeRows, error: routeError } = await supabase
+    .from('lta_bus_routes')
+    .select('stop_sequence, bus_stop_code, distance, wd_first_bus, wd_last_bus, sat_first_bus, sat_last_bus, sun_first_bus, sun_last_bus')
+    .eq('service_no', cleanSvc)
+    .eq('direction', direction)
+    .order('stop_sequence', { ascending: true });
+
+  if (routeError || !routeRows || routeRows.length === 0) {
+    if (routeError) console.error("Error getting bus route for", cleanSvc, routeError);
+    return [];
+  }
+
+  const stopCodes = routeRows.map((r: any) => r.bus_stop_code);
+  const { data: stopsData } = await supabase
+    .from('lta_bus_stops')
+    .select('bus_stop_code, description, road_name, latitude, longitude')
+    .in('bus_stop_code', stopCodes);
+
+  const stopMap = new Map<string, any>();
+  (stopsData || []).forEach((s: any) => stopMap.set(s.bus_stop_code, s));
+
+  return routeRows.map((row: any) => {
+    const s = stopMap.get(row.bus_stop_code) || {};
+    return {
+      seq: row.stop_sequence,
+      stopCode: row.bus_stop_code,
+      distance: row.distance,
+      firstBus: row.wd_first_bus,
+      lastBus: row.wd_last_bus,
+      satFirstBus: row.sat_first_bus,
+      satLastBus: row.sat_last_bus,
+      sunFirstBus: row.sun_first_bus,
+      sunLastBus: row.sun_last_bus,
+      desc: s.description || "",
+      road: s.road_name || "",
+      lat: s.latitude,
+      lon: s.longitude
+    };
+  });
+}
+
+export async function getBusService(serviceNo: string) {
+  const cleanSvc = (serviceNo || "").trim().toUpperCase();
+  const { data, error } = await supabase
+    .from('lta_bus_services')
+    .select('*')
+    .eq('service_no', cleanSvc)
+    .order('direction', { ascending: true });
+
+  if (error) {
+    console.error("Error getting bus service details for", cleanSvc, error);
+    return [];
+  }
+  return data || [];
 }
 
 
