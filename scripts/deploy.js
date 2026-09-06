@@ -32,6 +32,13 @@ if (envVars.LTA_ACCOUNT_KEY) {
   );
 }
 
+if (envVars.SUPABASE_URL) {
+  db = db.replace(
+    'const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";',
+    `const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "${envVars.SUPABASE_URL}";`
+  );
+}
+
 if (envVars.SUPABASE_ANON_KEY) {
   db = db.replace(
     'const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";',
@@ -39,10 +46,11 @@ if (envVars.SUPABASE_ANON_KEY) {
   );
 }
 
-if (envVars.TELEGRAM_BOT_TOKEN) {
+const botToken = envVars.LTA_BOT_TOKEN || envVars.TELEGRAM_BOT_TOKEN || "";
+if (botToken) {
   index = index.replace(
-    'const token = Deno.env.get("TELEGRAM_BOT_TOKEN") ?? "";',
-    `const token = Deno.env.get("TELEGRAM_BOT_TOKEN") || "${envVars.TELEGRAM_BOT_TOKEN}";`
+    'const token = Deno.env.get("LTA_BOT_TOKEN") ?? "";',
+    `const token = Deno.env.get("LTA_BOT_TOKEN") || "${botToken}";`
   );
 }
 

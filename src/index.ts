@@ -1,17 +1,17 @@
 import { renderTaxiMapHtml, renderERPMapHtml } from "./map_template.ts";
-import { Bot, webhookCallback, InlineKeyboard } from "npm:grammy@^1";
-import { fetchBusArrival, fetchTrafficImages, fetchCarparkAvailability, fetchTrafficIncidents, fetchMRTCrowd, fetchTrainAlerts, fetchTaxiAvailability, fetchBicycleParking, fetchEVChargingPoints } from "./lta_api.ts";
+import { Bot, webhookCallback, InlineKeyboard, Keyboard } from "npm:grammy@^1";
+import { fetchBusArrival, fetchTrafficImages, fetchCarparkAvailability, fetchTrafficIncidents, fetchMRTCrowd, fetchTrainAlerts, fetchTaxiAvailability, fetchBicycleParking, fetchEVChargingPoints, fetchMRTStationInfo } from "./lta_api.ts";
 import { 
   addFavorite, getFavorites, removeFavorite, getNearbyStops, getNearbyTaxiStands, getAllTaxiStands, supabase,
   findDirectBusRoutes, findOneTransferBusRoutes, getMRTSubscriptions, toggleMRTSubscription,
   setAllMRTSubscriptions, getAllSubscribersForLine, getMRTAlertState, updateMRTAlertState,
   getBusStopByCode, searchBusStops, createAlightingAlarm, getActiveAlightingAlarm,
-  updateAlightingTelemetry, cancelAlightingAlarm
+  updateAlightingTelemetry, cancelAlightingAlarm, getBusRoute, getBusService
 } from "./db.ts";
 import { ERP_CORRIDORS, ERP_GANTRIES, getCurrentERPRate, calculateVehicleRate, searchERPGantries, getGantriesByCorridor, getSGTHourAndMinute } from "./erp_data.ts";
 
-const token = Deno.env.get("TELEGRAM_BOT_TOKEN") ?? "";
-if (!token) console.warn("TELEGRAM_BOT_TOKEN environment variable not set");
+const token = Deno.env.get("LTA_BOT_TOKEN") ?? "";
+if (!token) console.warn("LTA_BOT_TOKEN environment variable not set");
 
 const bot = new Bot(token);
 
@@ -142,6 +142,15 @@ function getCarparkStatus(lots: number) {
   }
 }
 
+function renderLotBar(available: number): string {
+  const totalBars = 8;
+  if (available <= 0) return "<code>[░░░░░░░░]</code>";
+  const ratio = Math.min(1, Math.max(0.1, available / 80));
+  const filled = Math.max(1, Math.round(ratio * totalBars));
+  const bar = "█".repeat(filled) + "░".repeat(totalBars - filled);
+  return `<code>[${bar}]</code>`;
+}
+
 function formatMins(estTime?: string) {
   if (!estTime) return null;
   const diff = new Date(estTime).getTime() - Date.now();
@@ -209,9 +218,25 @@ async function safeEditOrSend(ctx: any, text: string, keyboard?: InlineKeyboard,
   }
 }
 
+function getPersistentAppKeyboard() {
+  const superMapUrl = "https://jasontan89.github.io/sg-transport-kaki-bot/super-map.html";
+  const busAppUrl = "https://jasontan89.github.io/sg-transport-kaki-bot/bus-app.html";
+  return new Keyboard()
+    .requestLocation("📍 Instant GPS Scan")
+    .webApp("🚌 BusLeh App", busAppUrl).row()
+    .webApp("🗺️ Super-Map App", superMapUrl)
+    .text("🚆 MRT Status & Times").row()
+    .text("🚗 Carparks & ERP")
+    .text("⭐ My Saved Stops")
+    .resized()
+    .persistent();
+}
+
 function getMainMenuKeyboard() {
-  const superMapUrl = "https://jasontan89.github.io/NewsTelegrambot/super-map.html";
+  const superMapUrl = "https://jasontan89.github.io/sg-transport-kaki-bot/super-map.html";
+  const busAppUrl = "https://jasontan89.github.io/sg-transport-kaki-bot/bus-app.html";
   return new InlineKeyboard()
+    .webApp("🚌 Launch SG BusLeh WebApp", busAppUrl).row()
     .webApp("🗺️ All-in-One Transit Super-Map", superMapUrl).row()
     .text("🚌 Public Transport", "cat_transport")
     .text("🚗 Drivers & Roads", "cat_driving").row()
@@ -226,6 +251,7 @@ function getTransportMenuKeyboard() {
     .text("🚌 Bus Route Explorer", "menu_routes").row()
     .text("🚆 MRT Crowds", "menu_mrt")
     .text("⚠️ Train Disruptions", "menu_disruptions").row()
+    .text("🌙 First & Last Train", "menu_firstlast")
     .text("🔔 MRT Disruption Alerts", "menu_mrt_alerts").row()
     .text("🔔 Bus Alighting Alarm", "menu_alight").row()
     .text("🔙 Back to Main Menu", "menu_main");
@@ -254,7 +280,7 @@ function getExploreMenuKeyboard() {
 }
 
 function getERPMenuKeyboard() {
-  const erpMapUrl = "https://jasontan89.github.io/NewsTelegrambot/erp-map.html";
+  const erpMapUrl = "https://jasontan89.github.io/sg-transport-kaki-bot/erp-map.html";
   return new InlineKeyboard()
     .webApp("🗺️ Launch Interactive ERP Gantry Map", erpMapUrl).row()
     .text("🛣️ CTE (Central)", "erp_corr_CTE")
@@ -306,20 +332,27 @@ function getHelpText(): string {
     `• <code>/goto Clementi to Orchard</code> — Direct & 1-transfer journey planner with live ETAs\n` +
     `• <code>/alight 09048</code> or <code>/alight Orchard</code> — Live bus alighting alarm & trip tracker\n\n` +
     `🚆 <b>MRT & LRT Network</b>\n` +
+    `• <code>/status</code> or <code>/mrtstatus</code> — 6-line breakdown health & LTA advisories\n` +
+    `• <code>/firstlast Orchard</code> or <code>/train City Hall</code> — First & terminating last train timetable\n` +
     `• <code>/mrt NSL</code> — Live platform crowd density indicators\n` +
     `• <code>/disruptions</code> — Network health status & free shuttle/bus bridging advice\n` +
-    `• <code>/mrtalerts</code> — Instant push notification subscriptions for breakdown alerts\n\n` +
+    `• <code>/alerts</code> or <code>/mrtalerts</code> — Instant push notification subscriptions for breakdown alerts\n\n` +
     `🚗 <b>Driving, Carparks, EV & Traffic</b>\n` +
     `• <code>/supermap</code> or <code>/map</code> — All-in-one interactive transit super-map (ERP, Cams, Incidents, Taxis, EV)\n` +
+    `• <code>/carpark Suntec</code> or <code>/parking ION</code> — Real-time lot availability & Google Maps driving directions\n` +
     `• <code>/checkpoint</code> — 🇸🇬🇲🇾 Real-time Woodlands Causeway & Tuas Second Link camera radar\n` +
     `• <code>/erp CTE</code> or <code>/erp Orchard</code> — Real-time active rates, vehicle multipliers & operating hours\n` +
     `• <code>/ev Tampines Mall</code> or <code>/ev 529510</code> — Live EV chargers, plug speeds (DC Fast/AC), rates & availability\n` +
-    `• <code>/carpark Suntec</code> — Real-time lot availability & Google Maps driving directions\n` +
     `• <code>/traffic</code> — Live expressway & checkpoint traffic camera snapshots\n` +
     `• <code>/incidents PIE</code> — Real-time accidents, heavy traffic, and interactive radar map\n\n` +
     `🚕 <b>Taxis & Bicycles</b>\n` +
     `• <code>/taxi Orchard</code> — Vacant taxis count & 316 official barrier-free taxi stands\n` +
     `• <code>/bike Tampines</code> — Sheltered bicycle racks & lot counts near MRT stations\n\n` +
+    `💬 <b>Telegram Inline Search (Any Chat!)</b>\n` +
+    `• Type <code>@LTA_Mall_Bot 01012</code> for live bus arrivals\n` +
+    `• Type <code>@LTA_Mall_Bot status</code> for MRT disruption overview\n` +
+    `• Type <code>@LTA_Mall_Bot Orchard</code> for first & last train schedules\n` +
+    `• Type <code>@LTA_Mall_Bot Suntec</code> for live carpark lot availability\n\n` +
     `📍 <b>Instant GPS 5-in-1 Scan</b>\n` +
     `• Send your 📎 <b>Location attachment</b> for instant nearby bus stops, carparks, EV chargers, taxis, and bike racks!\n\n` +
     `⭐ <b>Favorites</b>\n` +
@@ -378,7 +411,7 @@ function getTrafficMenuKeyboard() {
 
 function getIncidentsMenuKeyboard() {
   return new InlineKeyboard()
-    .webApp("🗺️ Open Live Incidents Radar Map", "https://jasontan89.github.io/NewsTelegrambot/incidents-map.html").row()
+    .webApp("🗺️ Open Live Incidents Radar Map", "https://jasontan89.github.io/sg-transport-kaki-bot/incidents-map.html").row()
     .text("💥 Accidents & Breakdowns", "inc_type_critical").row()
     .text("🚗 Heavy Traffic & Jams", "inc_type_traffic").row()
     .text("🚧 Roadworks & Obstacles", "inc_type_roadworks").row()
@@ -431,45 +464,64 @@ async function renderBusArrivals(ctx: any, messageId: number | null, stopCode: s
     const isMrt = (stopInfo?.description || '').toLowerCase().includes('stn');
     const stopIcon = isMrt ? '🚆' : '🚏';
     const stopName = stopInfo?.description || `Bus Stop ${stopCode}`;
+    const nowStr = new Date().toLocaleTimeString("en-SG", { timeZone: "Asia/Singapore", hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
     
-    let message = `${stopIcon} <b>${stopName}</b> (<code>${stopCode}</code>)\n`;
+    let message = `${stopIcon} <b>${stopName}</b> <code>[${stopCode}]</code>\n`;
     if (stopInfo?.road_name) {
       message += `📍 <i>${stopInfo.road_name}</i>\n`;
     }
-    message += `\n`;
+    message += `🕒 <i>Live as of ${nowStr}</i>\n`;
+    message += `━━━━━━━━━━━━━━━━━━━━━\n`;
 
     for (const s of services) {
       const b1 = s.NextBus;
       const b2 = s.NextBus2;
       const b3 = s.NextBus3;
       const destCode = b1?.DestinationCode || b2?.DestinationCode || b3?.DestinationCode;
-      const destName = destMap[destCode] ? ` ➡️ <i>${destMap[destCode]}</i>` : '';
+      const destName = destMap[destCode] ? destMap[destCode] : '';
 
       const t1 = formatMins(b1?.EstimatedArrival);
       const t2 = formatMins(b2?.EstimatedArrival);
       const t3 = formatMins(b3?.EstimatedArrival);
 
       let timings: string[] = [];
-      if (t1) timings.push(`${getLoadIcon(b1.Load)} ${t1}${b1.Type === 'DD' ? ' 🚍' : ''}`);
-      if (t2) timings.push(`${getLoadIcon(b2.Load)} ${t2}${b2.Type === 'DD' ? ' 🚍' : ''}`);
-      if (t3) timings.push(`${getLoadIcon(b3.Load)} ${t3}${b3.Type === 'DD' ? ' 🚍' : ''}`);
+      if (t1) timings.push(`<code>${t1.padStart(3, ' ')} ${getLoadIcon(b1.Load)}${b1.Type === 'DD' ? ' 🚍' : ''}</code>`);
+      if (t2) timings.push(`<code>${t2.padStart(3, ' ')} ${getLoadIcon(b2.Load)}${b2.Type === 'DD' ? ' 🚍' : ''}</code>`);
+      if (t3) timings.push(`<code>${t3.padStart(3, ' ')} ${getLoadIcon(b3.Load)}${b3.Type === 'DD' ? ' 🚍' : ''}</code>`);
 
       if (timings.length > 0) {
-        message += `• <b><u>Bus ${s.ServiceNo}</u></b>${destName}\n  ${timings.join('  •  ')}\n\n`;
+        message += `🚌 <b>Bus ${s.ServiceNo}</b>  ${timings.join('  ·  ')}\n`;
+        if (destName) message += `  ↳ <i>to ${destName}</i>\n`;
+        message += `\n`;
       } else {
-        message += `• <b><u>Bus ${s.ServiceNo}</u></b>${destName}: <i>Not Operating</i>\n\n`;
+        message += `🚌 <b>Bus ${s.ServiceNo}</b>: <i>Not Operating</i>\n`;
+        if (destName) message += `  ↳ <i>to ${destName}</i>\n`;
+        message += `\n`;
       }
     }
 
-    message += `💡 <i>Legend</i>: 🟢 Seats  🟡 Standing  🔴 Crowded  •  🚍 Double Deck`;
+    message += `━━━━━━━━━━━━━━━━━━━━━\n`;
+    message += `🟢 Seats  🟡 Standing  🔴 Crowded  •  🚍 Double Deck`;
+
+    const userId = ctx.from?.id;
+    let isFavorited = false;
+    if (userId) {
+      const userFavs = await getFavorites(userId);
+      isFavorited = (userFavs || []).some((f: any) => (f.type === 'bus' || f.type === 'bus_stop') && f.value === stopCode);
+    }
+    const favBtnText = isFavorited ? "⭐ Saved (Tap to Remove)" : "⭐ Save to Favorites";
+    const favAction = isFavorited ? `unfav_bus_${stopCode}` : `fav_bus_${stopCode}`;
+    const busAppUrl = `https://jasontan89.github.io/sg-transport-kaki-bot/bus-app.html?stop=${stopCode}`;
 
     const keyboard = new InlineKeyboard()
-      .text("⭐ Save to Favorites", `fav_bus_${stopCode}`)
-      .text("🔄 Refresh", `get_bus_${stopCode}`).row();
+      .text("🔄 Refresh", `get_bus_${stopCode}`)
+      .text(favBtnText, favAction).row()
+      .webApp("📱 Open in BusLeh App", busAppUrl).row()
+      .text("🔔 Set Alight Alarm for This Stop", `alight_set_${stopCode}`).row();
 
     if (stopInfo?.latitude && stopInfo?.longitude) {
       const mapUrl = `https://www.google.com/maps/search/?api=1&query=${stopInfo.latitude},${stopInfo.longitude}`;
-      keyboard.url("🗺️ View Stop on Google Maps", mapUrl).row();
+      keyboard.url("🗺️ Google Maps", mapUrl);
     }
 
     keyboard.text("🔙 Back to Menu", "menu_main");
@@ -612,13 +664,38 @@ async function showTrainAlerts(ctx: any, messageId: number | null, isEdit: boole
     const affected = val.AffectedSegments || [];
     const messages = val.Message || [];
 
-    let text = `🚆 <b>MRT/LRT Service Status & Disruptions</b>\n\n`;
+    let text = `🚆 <b>Singapore MRT/LRT Network Status</b>\n\n`;
+
+    const lineHealth: Record<string, { name: string; status: string; note?: string }> = {
+      "NSL": { name: "🔴 North-South Line (NSL)", status: "🟢 Normal" },
+      "EWL": { name: "🟢 East-West Line (EWL)", status: "🟢 Normal" },
+      "CCL": { name: "🟠 Circle Line (CCL)", status: "🟢 Normal" },
+      "DTL": { name: "🔵 Downtown Line (DTL)", status: "🟢 Normal" },
+      "NEL": { name: "🟣 North East Line (NEL)", status: "🟢 Normal" },
+      "TEL": { name: "🟤 Thomson-East Coast (TEL)", status: "🟢 Normal" },
+    };
+
+    if (affected.length > 0) {
+      affected.forEach((seg: any) => {
+        const code = (seg.Line || "").toUpperCase();
+        if (lineHealth[code]) {
+          lineHealth[code].status = "🚨 Disrupted";
+          lineHealth[code].note = `Stretch: ${seg.Stations} (${seg.Direction})`;
+        }
+      });
+    }
+
+    text += `<b>Line Status Overview:</b>\n`;
+    for (const [, info] of Object.entries(lineHealth)) {
+      text += `• ${info.name}: <b>${info.status}</b>\n`;
+      if (info.note) text += `  ⚠️ <i>${info.note}</i>\n`;
+    }
+    text += `\n`;
 
     if (status === 1 && affected.length === 0) {
-      text += `✅ <b>Normal Train Operations</b>\n`;
-      text += `All MRT and LRT lines are currently running normally with no track faults or system delays.\n\n`;
+      text += `✅ <i>All 6 MRT lines operating with normal train frequencies. No track faults or signal delays reported by LTA.</i>\n\n`;
     } else {
-      text += `🚨 <b>ACTIVE SERVICE DISRUPTION DETECTED</b>\n\n`;
+      text += `🚨 <b>Active Disruption Details:</b>\n`;
       affected.forEach((seg: any) => {
         text += `• <b>Line</b>: ${seg.Line} (${seg.Direction})\n`;
         text += `• <b>Affected Stretch</b>: ${seg.Stations}\n`;
@@ -629,7 +706,7 @@ async function showTrainAlerts(ctx: any, messageId: number | null, isEdit: boole
     }
 
     if (messages.length > 0) {
-      text += `📢 <b>Active Travel Advisories & Service Adjustments:</b>\n\n`;
+      text += `📢 <b>Official LTA Travel Advisories:</b>\n\n`;
       messages.forEach((m: any) => {
         text += `• <i>${m.Content}</i>\n`;
         if (m.CreatedDate) text += `  🕒 <code>${m.CreatedDate}</code>\n\n`;
@@ -637,9 +714,17 @@ async function showTrainAlerts(ctx: any, messageId: number | null, isEdit: boole
     }
 
     const keyboard = new InlineKeyboard()
-      .text("🔄 Refresh Status", "menu_disruptions").row()
-      .text("🚆 Check Platform Crowds", "menu_mrt").row()
-      .text("🔙 Back to Main Menu", "menu_main");
+      .text("🔔 Alert Subscriptions", "menu_mrt_alerts").row()
+      .text("🌙 First & Last Train", "menu_firstlast")
+      .text("🚆 Platform Crowds", "menu_mrt").row();
+
+    if (affected.length > 0) {
+      keyboard.text("🚌 Find Parallel Bus Routes", "menu_goto").row();
+    }
+
+    keyboard
+      .text("🔄 Refresh Status", "menu_disruptions")
+      .text("🔙 Main Menu", "menu_main");
 
     if (isEdit) {
       await safeEditOrSend(ctx, text, keyboard, "HTML");
@@ -653,6 +738,174 @@ async function showTrainAlerts(ctx: any, messageId: number | null, isEdit: boole
       await safeEditOrSend(ctx, errText, kb, "HTML");
     } else {
       await ctx.reply(errText, { reply_markup: kb });
+    }
+  }
+}
+
+function formatTrainTime(t?: string): string {
+  if (!t || t.trim() === "-" || t.trim() === "") return "N/A";
+  const raw = t.trim();
+  if (raw.length === 4) {
+    const hh = parseInt(raw.substring(0, 2), 10);
+    const mm = raw.substring(2, 4);
+    const ampm = hh >= 12 && hh < 24 ? "PM" : "AM";
+    const displayH = hh % 12 === 0 ? 12 : hh % 12;
+    return `${raw.substring(0, 2)}:${mm} (${displayH}:${mm} ${ampm})`;
+  }
+  return raw;
+}
+
+async function showFirstLastTrain(ctx: any, messageId: number | null, query: string, isEdit: boolean) {
+  try {
+    const q = (query || "").trim();
+
+    if (!q) {
+      const text = `🌙 <b>Singapore MRT First & Last Train Timetables</b>\n\n` +
+        `Check official first & terminating last train departure times for any MRT/LRT station across all Singapore lines.\n\n` +
+        `<b>Quick Commands:</b>\n` +
+        `• <code>/firstlast &lt;station&gt;</code> (e.g. <code>/firstlast Orchard</code>, <code>/firstlast City Hall</code>)\n` +
+        `• <code>/train &lt;station_code&gt;</code> (e.g. <code>/train NS25</code>, <code>/train Tampines</code>)\n\n` +
+        `💡 <i>Tap a popular MRT interchange below to inspect:</i>`;
+
+      const keyboard = new InlineKeyboard()
+        .text("🔴🟢 Jurong East", "fl_st_NS1").text("🔴🟢 City Hall", "fl_st_EW13").row()
+        .text("🔴🟢 Raffles Place", "fl_st_EW14").text("🔴🟠 Bishan", "fl_st_NS17").row()
+        .text("🔴🟣 Dhoby Ghaut", "fl_st_NS24").text("🟢🟠 Paya Lebar", "fl_st_EW8").row()
+        .text("🟣🟠 Serangoon", "fl_st_NE12").text("🟢🔵 Bugis", "fl_st_EW12").row()
+        .text("🔴🟤 Woodlands", "fl_st_NS9").text("🔴🟤 Orchard", "fl_st_NS22").row()
+        .text("🟢🔵 Tampines", "fl_st_EW2").text("🟢🟠 Buona Vista", "fl_st_EW21").row()
+        .text("🚆 MRT Disruptions Status", "menu_disruptions").row()
+        .text("🔙 Back to Transport Menu", "cat_transport");
+
+      if (isEdit) {
+        return await safeEditOrSend(ctx, text, keyboard, "HTML");
+      } else {
+        return await ctx.reply(text, { parse_mode: "HTML", reply_markup: keyboard });
+      }
+    }
+
+    const stations = await fetchMRTStationInfo(q);
+
+    if (!stations || stations.length === 0) {
+      const text = `❌ No MRT stations found matching "<b>${q}</b>".\n\n` +
+        `Try searching for station names like <code>City Hall</code>, <code>Bishan</code>, <code>Jurong East</code>, or codes like <code>NS25</code>, <code>EW12</code>.`;
+      const kb = new InlineKeyboard()
+        .text("🌙 All Timetables", "menu_firstlast")
+        .text("🔙 Main Menu", "menu_main");
+      if (isEdit) {
+        return await safeEditOrSend(ctx, text, kb, "HTML");
+      } else {
+        return await ctx.reply(text, { parse_mode: "HTML", reply_markup: kb });
+      }
+    }
+
+    // Check for exact match first
+    let targetStation = stations[0];
+    const exactMatch = stations.find((s: any) => 
+      s.name?.toLowerCase() === q.toLowerCase() || 
+      (s.code && s.code.toLowerCase().split(",").map((c: string) => c.trim()).includes(q.toLowerCase()))
+    );
+
+    if (exactMatch) {
+      targetStation = exactMatch;
+    } else if (stations.length > 1) {
+      // Prompt user to pick which station
+      const pickText = `🔍 Found <b>${stations.length}</b> MRT stations matching "<b>${q}</b>":\n\n` +
+        `Please select a station below to view its timetables:`;
+      const pickKb = new InlineKeyboard();
+      stations.slice(0, 8).forEach((st: any) => {
+        const primaryCode = (st.code || "").split(",")[0].trim();
+        pickKb.text(`🚆 ${st.name} (${st.code})`, `fl_st_${primaryCode}`).row();
+      });
+      pickKb.text("🌙 Train Timetables Menu", "menu_firstlast").row();
+      pickKb.text("🔙 Transport Menu", "cat_transport");
+
+      if (isEdit) {
+        return await safeEditOrSend(ctx, pickText, pickKb, "HTML");
+      } else {
+        return await ctx.reply(pickText, { parse_mode: "HTML", reply_markup: pickKb });
+      }
+    }
+
+    // Render targetStation
+    const primaryCode = (targetStation.code || "").split(",")[0].trim();
+    let text = `🚆 <b>${targetStation.name} MRT Station</b> (<code>${targetStation.code}</code>)\n\n`;
+
+    const ttList = targetStation.train_times || [];
+    if (ttList.length === 0) {
+      text += `<i>No timetable information currently available for this station.</i>\n\n`;
+    } else {
+      // Group by station_line
+      const lineGroups: Record<string, any[]> = {};
+      ttList.forEach((tt: any) => {
+        const line = tt.station_line || "MRT Service";
+        if (!lineGroups[line]) lineGroups[line] = [];
+        lineGroups[line].push(tt);
+      });
+
+      for (const [lineName, items] of Object.entries(lineGroups)) {
+        text += `<b><u>${lineName}</u></b>\n`;
+        items.forEach((item: any) => {
+          const desc = (item.description || "").replace(/^First\/Last train service terminating at\s*/i, "Terminating at ");
+          text += `• <b>${desc}</b>\n`;
+
+          const ft = item.first_trains || {};
+          const hasWeekday = ft.weekday && ft.weekday !== "-";
+          const hasSat = ft.sat && ft.sat !== "-";
+          const hasSun = ft.sun_public_holiday && ft.sun_public_holiday !== "-";
+
+          if (hasWeekday || hasSat || hasSun) {
+            text += `  🌅 <b>First Train</b>:\n`;
+            if (hasWeekday) text += `     • Mon–Fri: <code>${formatTrainTime(ft.weekday)}</code>\n`;
+            if (hasSat) text += `     • Saturday: <code>${formatTrainTime(ft.sat)}</code>\n`;
+            if (hasSun) text += `     • Sun / PH: <code>${formatTrainTime(ft.sun_public_holiday)}</code>\n`;
+          }
+
+          if (item.last_trains && item.last_trains !== "-") {
+            text += `  🌙 <b>Last Train</b>: <code>${formatTrainTime(item.last_trains)}</code>\n`;
+          }
+          text += `\n`;
+        });
+      }
+    }
+
+    if (targetStation.exit && targetStation.exit.length > 0) {
+      text += `🚪 <b>Station Exits:</b>\n`;
+      targetStation.exit.slice(0, 4).forEach((ex: any) => {
+        const shortDesc = (ex.description || "").split(",").slice(0, 3).join(", ");
+        text += `• <b>${ex.station_exit}</b>: <i>${shortDesc}</i>\n`;
+      });
+      text += `\n`;
+    }
+
+    text += `🕒 <i>Official SMRT Connect Transit Timetable</i>`;
+
+    const keyboard = new InlineKeyboard();
+
+    if (targetStation.lat && targetStation.lng) {
+      keyboard.url("🗺️ View Station on Google Maps", `https://www.google.com/maps/search/?api=1&query=${targetStation.lat},${targetStation.lng}`).row();
+    }
+
+    keyboard
+      .text("🔄 Refresh Timetable", `fl_st_${primaryCode}`)
+      .text("🌙 Other Stations", "menu_firstlast").row()
+      .text("🚆 Train Disruptions", "menu_disruptions")
+      .text("🔙 Transport Menu", "cat_transport");
+
+    if (isEdit) {
+      return await safeEditOrSend(ctx, text, keyboard, "HTML");
+    } else {
+      return await ctx.reply(text, { parse_mode: "HTML", reply_markup: keyboard });
+    }
+
+  } catch (err: any) {
+    console.error("Error in showFirstLastTrain:", err);
+    const errText = "Error fetching first and last train timetable.";
+    const kb = new InlineKeyboard().text("🔙 Back to Menu", "menu_main");
+    if (isEdit) {
+      return await safeEditOrSend(ctx, errText, kb, "HTML");
+    } else {
+      return await ctx.reply(errText, { reply_markup: kb });
     }
   }
 }
@@ -814,7 +1067,7 @@ async function showTaxiLocator(ctx: any, messageId: number | null, queryOrCoords
 
     const keyboard = new InlineKeyboard();
 
-    const webAppUrl = `https://jasontan89.github.io/NewsTelegrambot/taxi-map.html?lat=${targetLat}&lon=${targetLon}&name=${encodeURIComponent(locationTitle)}`;
+    const webAppUrl = `https://jasontan89.github.io/sg-transport-kaki-bot/taxi-map.html?lat=${targetLat}&lon=${targetLon}&name=${encodeURIComponent(locationTitle)}`;
     keyboard.webApp("🗺️ Open Live Taxi Radar Map", webAppUrl).row();
 
     if (stands && stands.length > 0) {
@@ -1185,7 +1438,7 @@ async function showERPRates(
     const keyboard = new InlineKeyboard();
 
     // Launch Interactive WebApp Map Button
-    const erpMapUrl = `https://jasontan89.github.io/NewsTelegrambot/erp-map.html?corridor=${encodeURIComponent(cleanQ)}&vehicle=${vehicleType}`;
+    const erpMapUrl = `https://jasontan89.github.io/sg-transport-kaki-bot/erp-map.html?corridor=${encodeURIComponent(cleanQ)}&vehicle=${vehicleType}`;
     keyboard.webApp("🗺️ Open Interactive ERP Gantry Map", erpMapUrl).row();
 
     // Vehicle Switcher Row
@@ -1280,7 +1533,7 @@ async function showERPGantryDetails(
 
     const keyboard = new InlineKeyboard();
 
-    const erpMapUrl = `https://jasontan89.github.io/NewsTelegrambot/erp-map.html?corridor=${encodeURIComponent(gantry.corridor)}&vehicle=${vehicleType}`;
+    const erpMapUrl = `https://jasontan89.github.io/sg-transport-kaki-bot/erp-map.html?corridor=${encodeURIComponent(gantry.corridor)}&vehicle=${vehicleType}`;
     keyboard.webApp("🗺️ Open Interactive ERP Gantry Map", erpMapUrl).row();
 
     if (gantry.lat && gantry.lon) {
@@ -1674,7 +1927,7 @@ bot.command(["goto", "plan", "routefinder"], async (ctx) => {
   await planBusJourney(ctx, msgId, origin, dest, false);
 });
 
-bot.command(["mrtalerts", "subscribe", "sub"], async (ctx) => {
+bot.command(["alerts", "mrtalerts", "submrt", "subscribe", "sub"], async (ctx) => {
   const userId = ctx.from?.id;
   const chatId = ctx.chat?.id;
   if (!userId || !chatId) return;
@@ -1693,10 +1946,34 @@ bot.command("testmrtalert", async (ctx) => {
 
 bot.command(["start", "menu"], async (ctx) => {
   const name = ctx.from?.first_name ?? "there";
+  const superMapUrl = "https://jasontan89.github.io/sg-transport-kaki-bot/super-map.html";
+
+  // Set native Telegram Chat Menu Button to launch Transit Super-Map
+  try {
+    await bot.api.setChatMenuButton({
+      chat_id: ctx.chat?.id,
+      menu_button: {
+        type: "web_app",
+        text: "🗺️ Super-Map",
+        web_app: { url: superMapUrl }
+      }
+    });
+  } catch (_) {}
+
+  // 1. Establish persistent bottom navigation bar
   await ctx.reply(
-    `Hi ${name}! 👋 Welcome to <b>SG Transport Kaki 🇸🇬</b> — Your All-in-One Singapore Transport Companion!\n\n` +
-    `Select a category below to get started, or type commands directly:\n\n` +
-    `💡 <b>Tip</b>: Tap the 📎 Attachment icon and send your <b>Location</b> for an instant 4-in-1 scan (Bus, Carparks, Taxis, Bikes)!`,
+    `Hi ${name}! 👋 Welcome to <b>SG Transport Kaki 🇸🇬</b>\n\n` +
+    `💡 <i>Quick navigation bar docked below for instant 1-tap checks.</i>`,
+    { reply_markup: getPersistentAppKeyboard(), parse_mode: "HTML" }
+  );
+
+  // 2. Interactive Category Dashboard
+  await ctx.reply(
+    `📋 <b>Main Transport & Driving Services</b>\n\n` +
+    `• 🚌 <b>Public Transport</b>: Live Bus Arrivals, Journey Planner, MRT Crowds & Disruptions\n` +
+    `• 🚗 <b>Drivers & Roads</b>: ERP Gantries, Live Carparks, Checkpoint Cameras & Traffic Incidents\n` +
+    `• 📍 <b>Explore & Nearby</b>: EV Fast Chargers, Vacant Taxis & Bicycle Racks\n\n` +
+    `💡 <i>Pro-Tip: Tap <b>📍 Instant GPS Scan</b> below for a 5-in-1 scan of nearby transit!</i>`,
     { reply_markup: getMainMenuKeyboard(), parse_mode: "HTML" }
   );
 });
@@ -1747,9 +2024,19 @@ bot.command(["route", "busroute"], async (ctx) => {
   await showBusRoute(ctx, msg.message_id, busNo, 1, 1, false);
 });
 
-bot.command(["disruptions", "disruption", "trainstatus"], async (ctx) => {
+bot.command(["status", "mrtstatus", "disruptions", "disruption", "trainstatus"], async (ctx) => {
   const msg = await ctx.reply("🔍 Checking live MRT/LRT network status & disruptions...", { parse_mode: "HTML" });
   await showTrainAlerts(ctx, msg.message_id, false);
+});
+
+bot.command(["firstlast", "train", "firsttrain", "lasttrain"], async (ctx) => {
+  const query = ctx.match?.trim() || "";
+  if (!query) {
+    await showFirstLastTrain(ctx, null, "", false);
+  } else {
+    const msg = await ctx.reply(`🔍 Fetching train timetables for "<b>${query}</b>"...`, { parse_mode: "HTML" });
+    await showFirstLastTrain(ctx, msg.message_id, query, false);
+  }
 });
 
 bot.command(["taxi", "taxistands"], async (ctx) => {
@@ -1965,7 +2252,7 @@ async function showIncidents(ctx: any, messageId: number | null, filterType: str
       keyboard.row();
     }
 
-    keyboard.webApp("🗺️ View on Interactive Map", "https://jasontan89.github.io/NewsTelegrambot/incidents-map.html").row();
+    keyboard.webApp("🗺️ View on Interactive Map", "https://jasontan89.github.io/sg-transport-kaki-bot/incidents-map.html").row();
     keyboard.text("🔄 Refresh", `inc_p_${filterType}__${kwParam}__${currentPage}`).row();
     keyboard.text("🔙 Back to Incidents Menu", "menu_incidents");
 
@@ -1985,7 +2272,7 @@ async function showIncidents(ctx: any, messageId: number | null, filterType: str
   }
 }
 
-bot.command(["incidents", "alerts"], async (ctx) => {
+bot.command(["incidents", "trafficalerts", "roadalerts"], async (ctx) => {
   const query = ctx.match?.trim();
   if (!query) {
     return ctx.reply(
@@ -2055,13 +2342,21 @@ async function showCarparkSearchResults(ctx: any, messageId: number | null, quer
       const status = getCarparkStatus(lots);
       const devName = cp.Development || `Carpark ${cp.CarParkID}`;
       const lotType = cp.LotType === 'C' ? '🚗' : cp.LotType === 'H' ? '🚛' : '🏍️';
-      text += `${status.icon} ${lotType} <b>${devName}</b>: <code>${lots}</code> lots (${status.label})\n`;
+      const bar = renderLotBar(lots);
+
+      text += `${status.icon} ${lotType} <b>${devName}</b>\n`;
+      if (cp.Area) text += `  📍 <i>${cp.Area}</i>\n`;
+      text += `  🅿️ Lots: ${bar} <b>${lots}</b> (${status.label})\n\n`;
 
       if (cp.Location && cp.Location.trim()) {
         const [latStr, lonStr] = cp.Location.trim().split(/\s+/);
         if (latStr && lonStr && !isNaN(parseFloat(latStr)) && !isNaN(parseFloat(lonStr))) {
+          const shortTitle = devName.length > 15 ? devName.substring(0, 15) + "…" : devName;
           const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${latStr},${lonStr}`;
-          keyboard.url(`🗺️ Drive to ${devName.substring(0, 18)}`, mapsUrl).row();
+          const wazeUrl = `https://waze.com/ul?ll=${latStr},${lonStr}&navigate=yes`;
+          keyboard
+            .url(`🗺️ Google Maps (${shortTitle})`, mapsUrl)
+            .url(`🧭 Waze`, wazeUrl).row();
         }
       }
     });
@@ -2098,7 +2393,7 @@ async function showCarparkSearchResults(ctx: any, messageId: number | null, quer
   }
 }
 
-bot.command("carpark", async (ctx) => {
+bot.command(["carpark", "parking", "carparks"], async (ctx) => {
   const query = ctx.match?.trim();
   if (!query) {
     return ctx.reply(
@@ -2478,7 +2773,7 @@ bot.command(["alightstatus", "alarmstatus"], async (ctx) => {
 });
 
 bot.command(["supermap", "map", "transitmap"], async (ctx) => {
-  const superMapUrl = "https://jasontan89.github.io/NewsTelegrambot/super-map.html";
+  const superMapUrl = "https://jasontan89.github.io/sg-transport-kaki-bot/super-map.html";
   const keyboard = new InlineKeyboard()
     .webApp("🗺️ Launch All-in-One Super-Map", superMapUrl).row()
     .text("🔙 Back to Main Menu", "menu_main");
@@ -2492,6 +2787,26 @@ bot.command(["supermap", "map", "transitmap"], async (ctx) => {
     "• 🚕 <b>Taxis & Stands</b>: Vacant taxi radar & barrier-free taxi stands\n" +
     "• ⚡ <b>EV Charging</b>: 23 major high-speed EV charging hubs\n\n" +
     "📍 <i>Tap below to launch the interactive map with your live GPS location!</i>",
+    { parse_mode: "HTML", reply_markup: keyboard }
+  );
+});
+
+bot.command(["busleh", "busapp"], async (ctx) => {
+  const busAppUrl = "https://jasontan89.github.io/sg-transport-kaki-bot/bus-app.html";
+  const keyboard = new InlineKeyboard()
+    .webApp("🚌 Launch SG BusLeh App", busAppUrl).row()
+    .text("🔙 Back to Main Menu", "menu_main");
+
+  await ctx.reply(
+    "🚌 <b>SG BusLeh WebApp Companion 🇸🇬</b>\n\n" +
+    "Your dedicated full-screen bus companion inside Telegram:\n\n" +
+    "• 📍 <b>Nearby Stops</b>: Instant GPS scan for closest stops with walk meters\n" +
+    "• ⏱️ <b>Live Bus Arrivals</b>: Official LTA countdowns with seats/standing badges\n" +
+    "• 🚍 <b>Double Deckers & WAB</b>: Bus vehicle icons & accessibility indicators\n" +
+    "• 🗺️ <b>'Where is my Bus?'</b>: Tap any service to track approaching buses along the route\n" +
+    "• ⭐ <b>Synced Favorites</b>: Pin your daily stops and specific bus services\n" +
+    "• 🔔 <b>Dual Alighting Alarm</b>: In-app sound/haptic chime + background Telegram alert\n\n" +
+    "👇 <i>Tap below to launch the app!</i>",
     { parse_mode: "HTML", reply_markup: keyboard }
   );
 });
@@ -2614,7 +2929,7 @@ bot.on("message:location", async (ctx) => {
   let text = `${alarmBanner}📍 <b>Consolidated Transport Results</b>\n\n`;
   const keyboard = new InlineKeyboard();
 
-  const webAppUrl = `https://jasontan89.github.io/NewsTelegrambot/taxi-map.html?lat=${latitude}&lon=${longitude}&name=${encodeURIComponent("Your Current Location")}`;
+  const webAppUrl = `https://jasontan89.github.io/sg-transport-kaki-bot/taxi-map.html?lat=${latitude}&lon=${longitude}&name=${encodeURIComponent("Your Current Location")}`;
   keyboard.webApp("🗺️ Open Live Taxi Radar Map", webAppUrl).row();
 
   if (stops && stops.length > 0) {
@@ -2718,6 +3033,503 @@ bot.on("edit:location", async (ctx) => {
   }
 });
 
+bot.on("message:text", async (ctx) => {
+  const text = (ctx.message.text || "").trim();
+  if (!text) return;
+  if (text.startsWith("/")) return;
+
+  const textLower = text.toLowerCase();
+
+  // 1. Persistent Bottom Navigation Bar Clicks
+  if (text === "🚌 Bus Arrivals" || textLower === "bus" || textLower === "buses") {
+    const kb = new InlineKeyboard()
+      .text("🚏 Lucky Plaza [09048]", "get_bus_09048")
+      .text("🚏 Orchard Stn [09023]", "get_bus_09023").row()
+      .text("🚏 Bishan Stn [53009]", "get_bus_53009")
+      .text("🚏 Jurong East [28009]", "get_bus_28009").row()
+      .text("🚏 Tampines Int [75009]", "get_bus_75009")
+      .text("🚏 Woodlands Int [46009]", "get_bus_46009").row()
+      .text("🗺️ Journey Planner (/goto)", "menu_goto").row()
+      .text("🔙 Main Menu", "menu_main");
+
+    return await ctx.reply(
+      `🚌 <b>Bus Arrivals & Stop Search</b>\n\n` +
+      `Enter any <b>5-digit Bus Stop Code</b> directly (e.g. <code>09048</code>, <code>12039</code>, <code>01012</code>), or select a popular hub below:\n\n` +
+      `💡 <i>Tip: Tap <b>📍 Instant GPS Scan</b> below to automatically find the 5 closest bus stops to you!</i>`,
+      { reply_markup: kb, parse_mode: "HTML" }
+    );
+  }
+
+  if (text === "🚆 MRT Status & Times" || textLower === "mrt" || textLower === "train") {
+    const kb = new InlineKeyboard()
+      .text("⚠️ Train Disruptions Status", "menu_disruptions").row()
+      .text("🌙 First & Last Train Timetables", "menu_firstlast").row()
+      .text("📊 Platform Crowd Levels", "menu_mrt").row()
+      .text("🔔 Push Disruption Alerts", "menu_mrt_alerts").row()
+      .text("🔙 Main Menu", "menu_main");
+
+    return await ctx.reply(
+      `🚆 <b>Singapore MRT & LRT Hub</b>\n\n` +
+      `• <b>Disruptions</b>: Real-time track fault & bridging bus alerts\n` +
+      `• <b>First & Last Train</b>: Official timetables for all 176 stations\n` +
+      `• <b>Crowd Levels</b>: Platform density for NSL, EWL, CCL, DTL, NEL, TEL\n\n` +
+      `💡 <i>Type any station name (e.g. <code>City Hall</code>, <code>Bishan</code>) or select an option:</i>`,
+      { reply_markup: kb, parse_mode: "HTML" }
+    );
+  }
+
+  if (text === "🚗 Carparks & ERP" || textLower === "driving" || textLower === "driver") {
+    return await ctx.reply(
+      `🚗 <b>Drivers & Roads Hub</b>\n\n` +
+      `Select an option below or type a destination (e.g. <code>Suntec</code>, <code>ION</code>, <code>CTE</code>):\n\n` +
+      `• <b>Carparks Availability</b>: Real-time lot counts & navigation\n` +
+      `• <b>ERP Gantries</b>: Active rates with vehicle multipliers\n` +
+      `• <b>Traffic Cameras</b>: Live Causeway & expressway feeds\n` +
+      `• <b>Traffic Alerts</b>: Real-time accidents & roadworks`,
+      { reply_markup: getDrivingMenuKeyboard(), parse_mode: "HTML" }
+    );
+  }
+
+  if (text === "⭐ My Saved Stops" || textLower === "favorites" || textLower === "fav") {
+    const userId = ctx.from?.id;
+    if (!userId) return;
+    const favs = await getFavorites(userId);
+
+    if (!favs || favs.length === 0) {
+      return await ctx.reply(
+        `⭐ <b>Your Saved Favorites</b>\n\n` +
+        `You have no favorites saved yet.\n\n` +
+        `💡 Tap the ⭐ button on any bus stop or camera card to save it for 1-tap checks!`,
+        { reply_markup: new InlineKeyboard().text("🔙 Back to Menu", "menu_main"), parse_mode: "HTML" }
+      );
+    }
+
+    let message = `⭐ <b>Your Favorites</b>\n\nTap any saved item below for instant live status:\n`;
+    const keyboard = new InlineKeyboard();
+    for (const fav of favs) {
+      if (fav.type === "bus") {
+        keyboard.text(`🚌 ${fav.label || fav.value}`, `get_bus_${fav.value}`).row();
+      } else if (fav.type === "cam") {
+        const camMeta = getCameraMeta(fav.value);
+        keyboard.text(`📷 ${camMeta.name}`, `traffic_cam_${fav.value}`).row();
+      }
+    }
+    keyboard.text("🔙 Back to Menu", "menu_main");
+    return await ctx.reply(message, { parse_mode: "HTML", reply_markup: keyboard });
+  }
+
+  if (text === "🗺️ Super-Map App" || textLower === "supermap" || textLower === "map") {
+    const superMapUrl = "https://jasontan89.github.io/sg-transport-kaki-bot/super-map.html";
+    const kb = new InlineKeyboard()
+      .webApp("🗺️ Launch Transit Super-Map", superMapUrl).row()
+      .text("🔙 Main Menu", "menu_main");
+
+    return await ctx.reply(
+      `🗺️ <b>All-in-One Singapore Transit Super-Map</b>\n\n` +
+      `Interactive radar dashboard featuring:\n` +
+      `• 💳 Live ERP Gantries with current rates\n` +
+      `• 📷 8 Checkpoint & Expressway Traffic Cameras\n` +
+      `• 🚨 Real-time Traffic Incidents & Accidents\n` +
+      `• ⚡ 23 EV Fast Charging Hubs\n` +
+      `• 🚕 Vacant Taxis & 316 Official Taxi Stands\n\n` +
+      `Tap below to open full-screen in Telegram:`,
+      { reply_markup: kb, parse_mode: "HTML" }
+    );
+  }
+
+  // 2. 5-digit bus stop code detection (e.g. "09048", "12039", "01012")
+  if (/^\d{5}$/.test(text)) {
+    return await renderBusArrivals(ctx, null, text, false);
+  }
+
+  // 3. Journey Planner detection ("A to B" pattern, e.g. "Clementi to Orchard", "17009 to 09048")
+  const toMatch = text.match(/^(.+?)\s+to\s+(.+)$/i);
+  if (toMatch) {
+    const origin = toMatch[1].trim();
+    const dest = toMatch[2].trim();
+    if (origin && dest) {
+      const msg = await ctx.reply(`🔍 Calculating best bus journeys from "<b>${origin}</b>" to "<b>${dest}</b>"...`, { parse_mode: "HTML" });
+      return await planBusJourney(ctx, msg.message_id, origin, dest, false);
+    }
+  }
+
+  // 4. Bus service number detection (e.g. "106", "190", "502", "960", "31A", "bus 106", "route 190")
+  const busServiceMatch = text.match(/^(?:bus|route)?\s*(\d{1,4}[a-zA-Z]?)$/i);
+  if (busServiceMatch) {
+    const busNo = busServiceMatch[1].toUpperCase();
+    const msg = await ctx.reply(`🔍 Loading route itinerary & schedule for Bus <b><u>${busNo}</u></b>...`, { parse_mode: "HTML" });
+    return await showBusRoute(ctx, msg.message_id, busNo, 1, 1, false);
+  }
+
+  // 5. Common Keywords
+  if (["hi", "hello", "hey", "start", "menu", "home"].includes(textLower)) {
+    return await ctx.reply(
+      `Hi ${ctx.from?.first_name ?? "there"}! 👋 Welcome to <b>SG Transport Kaki 🇸🇬</b>\n\n` +
+      `What would you like to check today? Select a category below or type directly:`,
+      { reply_markup: getMainMenuKeyboard(), parse_mode: "HTML" }
+    );
+  }
+
+  if (textLower === "help") {
+    return await ctx.reply(getHelpText(), { reply_markup: getHelpKeyboard(), parse_mode: "HTML" });
+  }
+
+  if (["status", "disruptions", "disruption", "trainstatus", "mrt status"].includes(textLower)) {
+    const msg = await ctx.reply("🔍 Checking live MRT/LRT network status & disruptions...", { parse_mode: "HTML" });
+    return await showTrainAlerts(ctx, msg.message_id, false);
+  }
+
+  if (["firstlast", "first train", "last train", "timetables"].includes(textLower)) {
+    return await showFirstLastTrain(ctx, null, "", false);
+  }
+
+  if (["causeway", "checkpoint", "tuas", "woodlands"].includes(textLower)) {
+    const msg = await ctx.reply("🔍 Checking Woodlands & Tuas Checkpoint cameras...", { parse_mode: "HTML" });
+    return await showCheckpointRadar(ctx, msg.message_id, false);
+  }
+
+  if (["incidents", "accident", "accidents", "traffic alert"].includes(textLower)) {
+    const msg = await ctx.reply("🔍 Fetching live traffic alerts...");
+    return await showIncidents(ctx, msg.message_id, "all", null, false, 1);
+  }
+
+  // 6. Intelligent Landmark / Station / Carpark Search
+  try {
+    const [matchingStations, cpData, busStopMatches] = await Promise.all([
+      fetchMRTStationInfo(text).catch(() => []),
+      fetchCarparkAvailability().catch(() => ({ value: [] })),
+      searchBusStops(text, 3).catch(() => [])
+    ]);
+
+    const matchingCarparks = (cpData?.value || []).filter((cp: any) => {
+      const dev = (cp.Development || "").toLowerCase();
+      const area = (cp.Area || "").toLowerCase();
+      return dev.includes(textLower) || area.includes(textLower);
+    });
+
+    const hasStation = matchingStations.length > 0;
+    const hasCarpark = matchingCarparks.length > 0;
+    const hasBusStops = busStopMatches.length > 0;
+
+    // If both station and carpark match (e.g. "Orchard", "Tampines", "Bugis", "Jurong")
+    if (hasStation && hasCarpark) {
+      const bestStation = matchingStations[0];
+      const primaryCode = (bestStation.code || "").split(",")[0].trim();
+      const kb = new InlineKeyboard()
+        .text(`🚆 ${bestStation.name} Train Timetable`, `fl_st_${primaryCode}`).row()
+        .text(`🚗 ${matchingCarparks[0].Development || text} Parking (${matchingCarparks[0].AvailableLots} lots)`, `cp_search_${text}`).row();
+
+      if (hasBusStops) {
+        kb.text(`🚏 Bus Stop: ${busStopMatches[0].description} [${busStopMatches[0].bus_stop_code}]`, `get_bus_${busStopMatches[0].bus_stop_code}`).row();
+      }
+      kb.text("🔙 Main Menu", "menu_main");
+
+      return await ctx.reply(
+        `🔍 You searched for "<b>${text}</b>"\n\nFound matching transit services. What would you like to view?`,
+        { reply_markup: kb, parse_mode: "HTML" }
+      );
+    }
+
+    // Only Station matches
+    if (hasStation && !hasCarpark) {
+      const msg = await ctx.reply(`🔍 Fetching train timetables for "<b>${text}</b>"...`, { parse_mode: "HTML" });
+      return await showFirstLastTrain(ctx, msg.message_id, text, false);
+    }
+
+    // Only Carpark matches
+    if (hasCarpark && !hasStation) {
+      const msg = await ctx.reply(`🔍 Checking live parking lots for "<b>${text}</b>"...`, { parse_mode: "HTML" });
+      return await showCarparkSearchResults(ctx, msg.message_id, text, false, 1);
+    }
+
+    // Only Bus Stop Name matches
+    if (hasBusStops) {
+      const kb = new InlineKeyboard();
+      busStopMatches.forEach((bs: any) => {
+        kb.text(`🚏 ${bs.description} [${bs.bus_stop_code}]`, `get_bus_${bs.bus_stop_code}`).row();
+      });
+      kb.text("🔙 Main Menu", "menu_main");
+
+      return await ctx.reply(
+        `🚏 Bus stops matching "<b>${text}</b>":\n\nTap a stop below to view live arrival timings:`,
+        { reply_markup: kb, parse_mode: "HTML" }
+      );
+    }
+
+  } catch (searchErr) {
+    console.error("Smart text search error:", searchErr);
+  }
+
+  // 7. Helpful Fallback (No dead silence!)
+  const helperKb = new InlineKeyboard()
+    .text("🚌 Bus Arrivals", "menu_main")
+    .text("🚆 MRT Status", "menu_disruptions").row()
+    .text("🚗 Carparks", "menu_carparks")
+    .text("🗺️ Super-Map", "menu_main").row()
+    .text("ℹ️ Quick User Guide", "menu_help");
+
+  await ctx.reply(
+    `🤖 <b>SG Transport Kaki Quick Helper</b>\n\n` +
+    `I didn't quite find results for "<b>${text}</b>". Here are quick ways to search:\n\n` +
+    `• <b>Bus Stop</b>: Type any 5-digit code (e.g. <code>09048</code>, <code>12039</code>)\n` +
+    `• <b>Bus Route</b>: Type a bus number (e.g. <code>106</code>, <code>190</code>)\n` +
+    `• <b>Journey Directions</b>: Type <code>A to B</code> (e.g. <code>Clementi to Orchard</code>)\n` +
+    `• <b>Station / Mall</b>: Type any place (e.g. <code>City Hall</code>, <code>Suntec</code>)\n` +
+    `• <b>Instant Scan</b>: Tap <b>📍 Instant GPS Scan</b> below!`,
+    { reply_markup: helperKb, parse_mode: "HTML" }
+  );
+});
+
+bot.on("inline_query", async (ctx) => {
+  const query = (ctx.inlineQuery.query || "").trim();
+  const results: any[] = [];
+
+  try {
+    // 1. Bus Stop by 5-digit code (e.g. "01012", "12039", "bus 12039")
+    const busMatch = query.match(/\b\d{5}\b/);
+    if (busMatch) {
+      const stopCode = busMatch[0];
+      try {
+        const [stopInfo, arrivalData] = await Promise.all([
+          getBusStopByCode(stopCode).catch(() => null),
+          fetchBusArrival(stopCode).catch(() => null)
+        ]);
+
+        const stopName = stopInfo?.description || `Bus Stop ${stopCode}`;
+        const road = stopInfo?.road_name || "";
+        const services = arrivalData?.Services || [];
+
+        let arrivalSummary = "No buses currently operating";
+        let fullText = `🚌 <b>${stopName}</b> (<code>${stopCode}</code>)\n`;
+        if (road) fullText += `📍 <i>${road}</i>\n`;
+        fullText += `\n`;
+
+        if (services.length > 0) {
+          const topArrivals: string[] = [];
+          services.slice(0, 8).forEach((s: any) => {
+            const next1 = formatMins(s.NextBus?.EstimatedArrival) || "-";
+            const next2 = formatMins(s.NextBus2?.EstimatedArrival);
+            const next3 = formatMins(s.NextBus3?.EstimatedArrival);
+            const load1 = getLoadIcon(s.NextBus?.Load);
+
+            fullText += `• <b>${s.ServiceNo}</b>: <b>${next1}</b> ${load1}`;
+            if (next2) fullText += ` | ${next2}`;
+            if (next3) fullText += ` | ${next3}`;
+            fullText += `\n`;
+
+            if (topArrivals.length < 4) {
+              topArrivals.push(`${s.ServiceNo} (${next1})`);
+            }
+          });
+          arrivalSummary = topArrivals.join(" • ");
+        } else {
+          fullText += `<i>No active bus arrivals found for this stop right now.</i>\n`;
+        }
+
+        fullText += `\n🕒 <i>Live LTA DataMall v3 Feed</i>`;
+
+        const kb = new InlineKeyboard();
+        if (stopInfo?.latitude && stopInfo?.longitude) {
+          kb.url("🗺️ View on Google Maps", `https://www.google.com/maps/search/?api=1&query=${stopInfo.latitude},${stopInfo.longitude}`).row();
+        }
+        kb.url("🤖 Open SG Transport Kaki", "https://t.me/LTA_Mall_Bot");
+
+        results.push({
+          type: "article",
+          id: `bus_${stopCode}`,
+          title: `🚌 ${stopName} (${stopCode})`,
+          description: arrivalSummary,
+          input_message_content: {
+            message_text: fullText,
+            parse_mode: "HTML"
+          },
+          reply_markup: kb
+        });
+      } catch (busErr) {
+        console.error("Inline bus error:", busErr);
+      }
+    }
+
+    const qLower = query.toLowerCase();
+
+    // 2. MRT Line Status / Disruption Card (triggers on empty, "mrt", "train", "status", "disruptions", "alerts")
+    const isTrainStatusQuery = query === "" || qLower.includes("status") || qLower.includes("mrt") || qLower.includes("train") || qLower.includes("disrupt") || qLower.includes("alert");
+    if (isTrainStatusQuery) {
+      try {
+        const alertData = await fetchTrainAlerts();
+        const val = alertData.value || {};
+        const isDisrupted = val.Status !== 1 || (val.AffectedSegments && val.AffectedSegments.length > 0);
+        const statusIcon = isDisrupted ? "🚨" : "🟢";
+        const statusSummary = isDisrupted
+          ? `Disruption on ${val.AffectedSegments?.[0]?.Line || 'MRT'}!`
+          : "All 6 MRT lines normal";
+
+        let statusText = `🚆 <b>Singapore MRT Network Status</b>\n\n`;
+        statusText += `Status: ${statusIcon} <b>${isDisrupted ? 'Disrupted' : 'Normal Operations'}</b>\n\n`;
+        if (isDisrupted && val.AffectedSegments?.length > 0) {
+          val.AffectedSegments.forEach((seg: any) => {
+            statusText += `• <b>${seg.Line}</b>: ${seg.Stations} (${seg.Direction})\n`;
+            if (seg.FreePublicBus) statusText += `  🚌 Public Bus: ${seg.FreePublicBus}\n`;
+            if (seg.FreeMRTShuttle) statusText += `  🚆 MRT Shuttle: ${seg.FreeMRTShuttle}\n`;
+          });
+        } else {
+          statusText += `✅ <i>All 6 MRT lines operating with normal train frequencies. No track faults reported.</i>\n`;
+        }
+        statusText += `\n🕒 <i>Live LTA DataMall TrainServiceAlerts</i>`;
+
+        const kb = new InlineKeyboard().url("🤖 Open SG Transport Kaki", "https://t.me/LTA_Mall_Bot");
+
+        results.push({
+          type: "article",
+          id: `mrt_status`,
+          title: `${statusIcon} MRT Status: ${isDisrupted ? 'Disrupted' : 'All Lines Normal'}`,
+          description: statusSummary,
+          input_message_content: {
+            message_text: statusText,
+            parse_mode: "HTML"
+          },
+          reply_markup: kb
+        });
+      } catch (alertErr) {
+        console.error("Inline MRT alert error:", alertErr);
+      }
+    }
+
+    // 3. MRT Station First & Last Train Timetables (when query has letters and matches stations)
+    if (query.length >= 2 && !busMatch) {
+      try {
+        const matchingStations = await fetchMRTStationInfo(query);
+        matchingStations.slice(0, 4).forEach((st: any) => {
+          let ttSummary = "Official first & last train timetables";
+          let ttText = `🚆 <b>${st.name} MRT Station</b> (<code>${st.code}</code>)\n\n`;
+
+          if (st.train_times && st.train_times.length > 0) {
+            const firstT = st.train_times[0]?.first_trains?.weekday;
+            const lastT = st.train_times[0]?.last_trains;
+            ttSummary = `First: ${formatTrainTime(firstT)} | Last: ${formatTrainTime(lastT)}`;
+
+            ttText += `<b>First & Last Train Timetables:</b>\n`;
+            st.train_times.slice(0, 5).forEach((tt: any) => {
+              const desc = (tt.description || tt.station_line || "").replace(/^First\/Last train service terminating at\s*/i, "To ");
+              ttText += `\n• <b>${desc}</b>\n`;
+              if (tt.first_trains?.weekday && tt.first_trains.weekday !== "-") {
+                ttText += `  🌅 First: Mon-Sat ${formatTrainTime(tt.first_trains.weekday)} | Sun/PH ${formatTrainTime(tt.first_trains.sun_public_holiday)}\n`;
+              }
+              if (tt.last_trains && tt.last_trains !== "-") {
+                ttText += `  🌙 Last: ${formatTrainTime(tt.last_trains)}\n`;
+              }
+            });
+          }
+
+          ttText += `\n🕒 <i>Official SMRT Connect Transit Timetable</i>`;
+
+          const kb = new InlineKeyboard();
+          if (st.lat && st.lng) {
+            kb.url("🗺️ View on Google Maps", `https://www.google.com/maps/search/?api=1&query=${st.lat},${st.lng}`).row();
+          }
+          kb.url("🤖 Open SG Transport Kaki", "https://t.me/LTA_Mall_Bot");
+
+          const primaryCode = (st.code || "").split(",")[0].trim();
+          results.push({
+            type: "article",
+            id: `st_${primaryCode}`,
+            title: `🌙 ${st.name} (${st.code}) Timetable`,
+            description: ttSummary,
+            input_message_content: {
+              message_text: ttText,
+              parse_mode: "HTML"
+            },
+            reply_markup: kb
+          });
+        });
+      } catch (stErr) {
+        console.error("Inline MRT station error:", stErr);
+      }
+    }
+
+    // 4. Carpark Availability Search
+    const isCarparkQuery = qLower.startsWith("car") || qLower.startsWith("park") || query.length >= 3;
+    if (isCarparkQuery && results.length < 15) {
+      try {
+        const cpData = await fetchCarparkAvailability();
+        const rawCarparks = cpData?.value || [];
+        const cleanQ = qLower.replace(/^(carpark|car|parking|park)\s*/i, "").trim();
+
+        const filtered = rawCarparks.filter((cp: any) => {
+          if (!cleanQ) return (cp.AvailableLots || 0) > 100;
+          const dev = (cp.Development || "").toLowerCase();
+          const area = (cp.Area || "").toLowerCase();
+          return dev.includes(cleanQ) || area.includes(cleanQ);
+        }).slice(0, 5);
+
+        filtered.forEach((cp: any, idx: number) => {
+          const lots = cp.AvailableLots ?? 0;
+          const status = getCarparkStatus(lots);
+          const devName = cp.Development || `Carpark ${cp.CarParkID}`;
+          const lotType = cp.LotType === 'C' ? '🚗' : cp.LotType === 'H' ? '🚛' : '🏍️';
+
+          let cpText = `🚗 <b>${devName}</b>\n`;
+          if (cp.Area) cpText += `📍 Area: ${cp.Area}\n`;
+          cpText += `🅿️ Lots Available: <b>${lots}</b> (${status.label})\n`;
+          cpText += `🕒 <i>Real-time LTA CarParkAvailabilityv2</i>`;
+
+          const kb = new InlineKeyboard();
+          if (cp.Location && cp.Location.trim()) {
+            const [lat, lon] = cp.Location.trim().split(/\s+/);
+            if (lat && lon) {
+              kb.url("🗺️ Drive (Google Maps)", `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}`).row();
+            }
+          }
+          kb.url("🤖 Open SG Transport Kaki", "https://t.me/LTA_Mall_Bot");
+
+          results.push({
+            type: "article",
+            id: `cp_${cp.CarParkID || idx}`,
+            title: `${status.icon} ${lotType} ${devName}`,
+            description: `${lots} lots (${status.label}) • ${cp.Area || 'Singapore'}`,
+            input_message_content: {
+              message_text: cpText,
+              parse_mode: "HTML"
+            },
+            reply_markup: kb
+          });
+        });
+      } catch (cpErr) {
+        console.error("Inline carpark error:", cpErr);
+      }
+    }
+
+    // 5. If query is empty or no matches, provide instant starter guide
+    if (results.length === 0) {
+      results.push({
+        type: "article",
+        id: "guide_search",
+        title: "🇸🇬 SG Transport Kaki Inline Search",
+        description: "Type 5-digit bus stop, station name, or carpark (e.g. 01012, Orchard, Suntec)",
+        input_message_content: {
+          message_text:
+            `🇸🇬 <b>SG Transport Kaki — Inline Search</b>\n\n` +
+            `Type anywhere in Telegram:\n` +
+            `• <code>@LTA_Mall_Bot 01012</code> — Live bus arrivals for stop\n` +
+            `• <code>@LTA_Mall_Bot status</code> — Live MRT line health\n` +
+            `• <code>@LTA_Mall_Bot Orchard</code> — First & last train timetables\n` +
+            `• <code>@LTA_Mall_Bot Suntec</code> — Real-time carpark availability`,
+          parse_mode: "HTML"
+        },
+        reply_markup: new InlineKeyboard().url("🤖 Open SG Transport Kaki", "https://t.me/LTA_Mall_Bot")
+      });
+    }
+
+    await ctx.answerInlineQuery(results.slice(0, 20), {
+      cache_time: 15,
+      is_personal: false
+    });
+  } catch (err) {
+    console.error("Error answering inline query:", err);
+    await ctx.answerInlineQuery([], { cache_time: 5 }).catch(() => {});
+  }
+});
+
 bot.callbackQuery("menu_main", async (ctx) => {
   await ctx.answerCallbackQuery().catch(() => {});
   const name = ctx.from?.first_name ?? "there";
@@ -2786,6 +3598,17 @@ bot.callbackQuery("menu_routes", async (ctx) => {
 bot.callbackQuery("menu_disruptions", async (ctx) => {
   await ctx.answerCallbackQuery().catch(() => {});
   await showTrainAlerts(ctx, ctx.callbackQuery.message?.message_id || null, true);
+});
+
+bot.callbackQuery("menu_firstlast", async (ctx) => {
+  await ctx.answerCallbackQuery().catch(() => {});
+  await showFirstLastTrain(ctx, ctx.callbackQuery.message?.message_id || null, "", true);
+});
+
+bot.callbackQuery(/^fl_st_(.+)$/, async (ctx) => {
+  const stationQuery = ctx.match[1];
+  await ctx.answerCallbackQuery().catch(() => {});
+  await showFirstLastTrain(ctx, ctx.callbackQuery.message?.message_id || null, stationQuery, true);
 });
 
 bot.callbackQuery("menu_taxis", async (ctx) => {
@@ -2923,7 +3746,7 @@ bot.callbackQuery("menu_alight", async (ctx) => {
   await showAlightPrompt(ctx, "");
 });
 
-bot.callbackQuery(/^alight_pick_(\d{5})$/, async (ctx) => {
+bot.callbackQuery(/^(?:alight_pick_|alight_set_)(\d{5})$/, async (ctx) => {
   await ctx.answerCallbackQuery().catch(() => {});
   const code = ctx.match[1];
   const stop = await getBusStopByCode(code);
@@ -3372,7 +4195,7 @@ bot.callbackQuery(/^fav_(bus|cam)_(.+)$/, async (ctx) => {
       .from('lta_bus_stops')
       .select('description, road_name')
       .eq('bus_stop_code', value)
-      .single();
+      .maybeSingle();
     if (stopInfo?.description) {
       const isMrt = (stopInfo.description || '').toLowerCase().includes('stn');
       const icon = isMrt ? '🚆' : '🚏';
@@ -3383,8 +4206,27 @@ bot.callbackQuery(/^fav_(bus|cam)_(.+)$/, async (ctx) => {
   const success = await addFavorite(userId, type, value, label);
   if (success) {
     await ctx.answerCallbackQuery({ text: `⭐ Saved ${label} to favorites!`, show_alert: true }).catch(() => {});
+    if (type === 'bus') {
+      await renderBusArrivals(ctx, ctx.callbackQuery.message?.message_id || null, value, true);
+    }
   } else {
-    await ctx.answerCallbackQuery({ text: "Failed to save favorite." }).catch(() => {});
+    await ctx.answerCallbackQuery({ text: "❌ Failed to save favorite. Please try again." }).catch(() => {});
+  }
+});
+
+bot.callbackQuery(/^unfav_(bus|cam)_(.+)$/, async (ctx) => {
+  const type = ctx.match[1];
+  const value = String(ctx.match[2]);
+  const userId = ctx.from.id;
+
+  const success = await removeFavorite(userId, type, value);
+  if (success) {
+    await ctx.answerCallbackQuery({ text: `🗑️ Removed from favorites!`, show_alert: true }).catch(() => {});
+    if (type === 'bus') {
+      await renderBusArrivals(ctx, ctx.callbackQuery.message?.message_id || null, value, true);
+    }
+  } else {
+    await ctx.answerCallbackQuery({ text: "❌ Failed to remove favorite." }).catch(() => {});
   }
 });
 
@@ -3393,6 +4235,18 @@ const handleUpdate = webhookCallback(bot, "std/http");
 Deno.serve(async (req) => {
   try {
     const url = new URL(req.url);
+
+    // Handle CORS preflight for all endpoints
+    if (req.method === "OPTIONS") {
+      return new Response(null, {
+        status: 204,
+        headers: {
+          "access-control-allow-origin": "*",
+          "access-control-allow-methods": "GET, POST, OPTIONS",
+          "access-control-allow-headers": "*"
+        }
+      });
+    }
 
     // Handle Telegram WebApp Interactive Map
     if (req.method === "GET") {
@@ -3641,25 +4495,157 @@ Deno.serve(async (req) => {
         }
       }
 
+      // 6. Bus Nearby Stops API
+      if (url.pathname.endsWith("/api/bus-nearby") || url.pathname.endsWith("/api/bus/nearby")) {
+        try {
+          const lat = parseFloat(url.searchParams.get("lat") || "1.3521");
+          const lon = parseFloat(url.searchParams.get("lon") || "103.8198");
+          const limit = parseInt(url.searchParams.get("limit") || "12", 10);
+          const stops = await getNearbyStops(lat, lon, limit);
+          return new Response(JSON.stringify({ ok: true, stops }), {
+            headers: {
+              "content-type": "application/json",
+              "access-control-allow-origin": "*"
+            }
+          });
+        } catch (e: any) {
+          return new Response(JSON.stringify({ error: e.message }), {
+            status: 500,
+            headers: { "content-type": "application/json", "access-control-allow-origin": "*" }
+          });
+        }
+      }
+
+      // 7. Bus Arrivals API
+      if (url.pathname.endsWith("/api/bus-arrivals") || url.pathname.endsWith("/api/bus/arrivals")) {
+        try {
+          const stop = (url.searchParams.get("stop") || "").trim();
+          if (!stop) {
+            return new Response(JSON.stringify({ error: "Missing stop parameter" }), {
+              status: 400,
+              headers: { "content-type": "application/json", "access-control-allow-origin": "*" }
+            });
+          }
+          const [data, stopInfo] = await Promise.all([
+            fetchBusArrival(stop).catch(() => ({ Services: [] })),
+            getBusStopByCode(stop).catch(() => null)
+          ]);
+          return new Response(JSON.stringify({
+            ok: true,
+            stopCode: stop,
+            stopInfo,
+            services: data.Services || []
+          }), {
+            headers: {
+              "content-type": "application/json",
+              "access-control-allow-origin": "*"
+            }
+          });
+        } catch (e: any) {
+          return new Response(JSON.stringify({ error: e.message }), {
+            status: 500,
+            headers: { "content-type": "application/json", "access-control-allow-origin": "*" }
+          });
+        }
+      }
+
+      // 8. Bus Search API
+      if (url.pathname.endsWith("/api/bus-search") || url.pathname.endsWith("/api/bus/search")) {
+        try {
+          const q = (url.searchParams.get("q") || "").trim();
+          const [stops, services] = await Promise.all([
+            searchBusStops(q, 15).catch(() => []),
+            getBusService(q).catch(() => [])
+          ]);
+          return new Response(JSON.stringify({
+            ok: true,
+            query: q,
+            stops,
+            services
+          }), {
+            headers: {
+              "content-type": "application/json",
+              "access-control-allow-origin": "*"
+            }
+          });
+        } catch (e: any) {
+          return new Response(JSON.stringify({ error: e.message }), {
+            status: 500,
+            headers: { "content-type": "application/json", "access-control-allow-origin": "*" }
+          });
+        }
+      }
+
+      // 9. Bus Route Sequence API
+      if (url.pathname.endsWith("/api/bus-route") || url.pathname.endsWith("/api/bus/route")) {
+        try {
+          const service = (url.searchParams.get("service") || "").trim();
+          const direction = parseInt(url.searchParams.get("direction") || "1", 10);
+          const [stops, serviceInfo] = await Promise.all([
+            getBusRoute(service, direction).catch(() => []),
+            getBusService(service).catch(() => [])
+          ]);
+          return new Response(JSON.stringify({
+            ok: true,
+            serviceNo: service,
+            direction,
+            serviceInfo,
+            stops
+          }), {
+            headers: {
+              "content-type": "application/json",
+              "access-control-allow-origin": "*"
+            }
+          });
+        } catch (e: any) {
+          return new Response(JSON.stringify({ error: e.message }), {
+            status: 500,
+            headers: { "content-type": "application/json", "access-control-allow-origin": "*" }
+          });
+        }
+      }
+
+      // 10. Bus Favorites GET API
+      if (url.pathname.endsWith("/api/bus-favorites") || url.pathname.endsWith("/api/bus/favorites")) {
+        try {
+          const userId = parseInt(url.searchParams.get("userId") || "0", 10);
+          const favs = userId ? await getFavorites(userId) : [];
+          return new Response(JSON.stringify({ ok: true, favorites: favs }), {
+            headers: {
+              "content-type": "application/json",
+              "access-control-allow-origin": "*"
+            }
+          });
+        } catch (e: any) {
+          return new Response(JSON.stringify({ error: e.message }), {
+            status: 500,
+            headers: { "content-type": "application/json", "access-control-allow-origin": "*" }
+          });
+        }
+      }
+
       // Handle Registering Native Telegram Slash Commands
       if (url.pathname.endsWith("/api/setup-commands")) {
         try {
           const commands = [
+            { command: "busleh", description: "🚌 Dedicated full-screen SG BusLeh WebApp" },
             { command: "supermap", description: "🗺️ All-in-one live transit radar map (ERP, Cams, Incidents, Taxis, EV)" },
-            { command: "map", description: "🗺️ Interactive Singapore transit super-map" },
-            { command: "goto", description: "🗺️ Plan direct & transfer bus journeys" },
+            { command: "status", description: "🚆 Real-time MRT line disruption status" },
+            { command: "firstlast", description: "🌙 First & last train timetables" },
+            { command: "train", description: "🚆 Search MRT station timetables" },
+            { command: "carpark", description: "🚗 Live carpark lot availability" },
+            { command: "parking", description: "🚗 Search carpark lots & directions" },
+            { command: "alerts", description: "🔔 Manage MRT disruption push alerts" },
             { command: "bus", description: "🚌 Live bus arrival timings & search" },
+            { command: "goto", description: "🗺️ Plan direct & transfer bus journeys" },
+            { command: "route", description: "🚍 Bus route stops & operating hours" },
             { command: "alight", description: "🔔 Set bus alighting alarm with live location" },
             { command: "cancelalight", description: "⏹️ Stop and cancel active alighting alarm" },
-            { command: "route", description: "🚍 Bus route stops & operating hours" },
             { command: "mrt", description: "🚆 Station platform crowd levels" },
-            { command: "disruptions", description: "⚠️ Train breakdown status & bridging" },
-            { command: "mrtalerts", description: "🔔 Manage MRT disruption push alerts" },
             { command: "checkpoint", description: "🇸🇬🇲🇾 Causeway & Tuas live cameras & road advisory" },
             { command: "erp", description: "💳 Live ERP gantry rates, schedules & vehicle rates" },
             { command: "ev", description: "⚡ Live EV chargers, plug speeds & availability" },
             { command: "taxi", description: "🚕 Vacant taxi counts & taxi stands" },
-            { command: "carpark", description: "🚗 Live carpark lot availability" },
             { command: "traffic", description: "📷 Checkpoint & expressway traffic cameras" },
             { command: "incidents", description: "🚨 Real-time traffic alerts & radar map" },
             { command: "bike", description: "🚲 MRT bicycle parking & rack shelters" },
@@ -3668,7 +4654,22 @@ Deno.serve(async (req) => {
             { command: "help", description: "ℹ️ Complete user guide & tips" }
           ];
           await bot.api.setMyCommands(commands);
-          return new Response(JSON.stringify({ ok: true, message: "Commands registered successfully" }), {
+
+          // Configure default Chat Menu Button to launch Super-Map WebApp
+          const superMapUrl = "https://jasontan89.github.io/sg-transport-kaki-bot/super-map.html";
+          try {
+            await bot.api.setChatMenuButton({
+              menu_button: {
+                type: "web_app",
+                text: "🗺️ Super-Map",
+                web_app: { url: superMapUrl }
+              }
+            });
+          } catch (menuBtnErr) {
+            console.warn("setChatMenuButton warning:", menuBtnErr);
+          }
+
+          return new Response(JSON.stringify({ ok: true, message: "Commands and WebApp Menu Button registered successfully" }), {
             headers: {
               "content-type": "application/json",
               "access-control-allow-origin": "*"
@@ -3681,6 +4682,73 @@ Deno.serve(async (req) => {
               "content-type": "application/json",
               "access-control-allow-origin": "*"
             }
+          });
+        }
+      }
+    }
+
+    // Handle Custom POST APIs
+    if (req.method === "POST") {
+      if (url.pathname.endsWith("/api/bus-favorites") || url.pathname.endsWith("/api/bus/favorites")) {
+        try {
+          const body = await req.json();
+          const userId = parseInt(body.userId, 10);
+          const action = body.action;
+          const type = body.type || "bus";
+          const value = String(body.value);
+          const label = String(body.label || value);
+
+          if (!userId || !value) {
+            return new Response(JSON.stringify({ error: "Missing required fields" }), {
+              status: 400,
+              headers: { "content-type": "application/json", "access-control-allow-origin": "*" }
+            });
+          }
+
+          if (action === "add") {
+            await addFavorite(userId, type, value, label);
+          } else if (action === "remove") {
+            await removeFavorite(userId, type, value);
+          }
+
+          const updated = await getFavorites(userId);
+          return new Response(JSON.stringify({ ok: true, favorites: updated }), {
+            headers: { "content-type": "application/json", "access-control-allow-origin": "*" }
+          });
+        } catch (e: any) {
+          return new Response(JSON.stringify({ error: e.message }), {
+            status: 500,
+            headers: { "content-type": "application/json", "access-control-allow-origin": "*" }
+          });
+        }
+      }
+
+      if (url.pathname.endsWith("/api/bus-alight") || url.pathname.endsWith("/api/bus/alight")) {
+        try {
+          const body = await req.json();
+          const userId = parseInt(body.userId, 10);
+          const chatId = parseInt(body.chatId, 10) || userId;
+          const destStopCode = String(body.destStopCode || "");
+          const destName = String(body.destName || destStopCode);
+          const destLat = parseFloat(body.destLat);
+          const destLon = parseFloat(body.destLon);
+          const thresholdMeters = parseInt(body.thresholdMeters, 10) || 500;
+
+          if (!userId || !destStopCode || isNaN(destLat) || isNaN(destLon)) {
+            return new Response(JSON.stringify({ error: "Invalid alighting parameters" }), {
+              status: 400,
+              headers: { "content-type": "application/json", "access-control-allow-origin": "*" }
+            });
+          }
+
+          const alarm = await createAlightingAlarm(userId, chatId, destStopCode, destName, destLat, destLon, thresholdMeters);
+          return new Response(JSON.stringify({ ok: true, alarm }), {
+            headers: { "content-type": "application/json", "access-control-allow-origin": "*" }
+          });
+        } catch (e: any) {
+          return new Response(JSON.stringify({ error: e.message }), {
+            status: 500,
+            headers: { "content-type": "application/json", "access-control-allow-origin": "*" }
           });
         }
       }

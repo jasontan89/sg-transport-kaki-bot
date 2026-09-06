@@ -109,3 +109,38 @@ export async function fetchEVChargingPoints(postalCode: string) {
   if (!response.ok) throw new Error("Failed to fetch EV charging data");
   return response.json();
 }
+
+let cachedMRTStations: any[] | null = null;
+let lastMRTFetchTime = 0;
+
+export async function fetchMRTStationInfo(query?: string) {
+  const now = Date.now();
+  if (!cachedMRTStations || now - lastMRTFetchTime > 3600000) {
+    try {
+      const res = await fetch("https://connect.smrt.wwprojects.com/smrt/api/station_info", {
+        headers: {
+          "Referer": "http://journey.smrt.com.sg/journey/station_info/",
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+        }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        cachedMRTStations = data.results || [];
+        lastMRTFetchTime = now;
+      }
+    } catch (err) {
+      console.error("Error fetching SMRT station info:", err);
+    }
+  }
+
+  const allStations = cachedMRTStations || [];
+  if (!query || !query.trim()) return allStations;
+
+  const q = query.toLowerCase().trim();
+  return allStations.filter((s: any) =>
+    (s.name && s.name.toLowerCase().includes(q)) ||
+    (s.code && s.code.toLowerCase().includes(q)) ||
+    (s.listing && s.listing.toLowerCase().includes(q))
+  );
+}
+
