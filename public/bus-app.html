@@ -93,7 +93,7 @@
     .header-icons {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
     }
 
     .header-clock-pill {
@@ -166,7 +166,7 @@
       box-shadow: 0 0 8px rgba(56, 189, 248, 0.8);
     }
 
-    /* Active Alighting Alarm Banner (Midnight Indigo / Cyan Glow) */
+    /* Active Alighting Alarm Sticky Top Banner */
     .alarm-banner {
       display: none;
       background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
@@ -176,6 +176,7 @@
       align-items: center;
       justify-content: space-between;
       animation: bannerGlow 2.5s infinite;
+      cursor: pointer;
     }
 
     .alarm-banner.active {
@@ -184,8 +185,111 @@
 
     @keyframes bannerGlow {
       0% { box-shadow: inset 0 0 10px rgba(56, 189, 248, 0.1); }
-      50% { box-shadow: inset 0 0 18px rgba(56, 189, 248, 0.3); }
+      50% { box-shadow: inset 0 0 18px rgba(56, 189, 248, 0.35); }
       100% { box-shadow: inset 0 0 10px rgba(56, 189, 248, 0.1); }
+    }
+
+    /* Dedicated Active Alarm Info Card (Requirement 2) */
+    .active-alarm-card {
+      display: none;
+      margin: 12px 14px;
+      background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #1e3a8a 100%);
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      border-radius: 14px;
+      padding: 14px 16px;
+      color: #ffffff;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.35);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .active-alarm-card.active {
+      display: block;
+    }
+
+    .alarm-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .alarm-radar-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 800;
+      color: #38bdf8;
+      background: rgba(56, 189, 248, 0.15);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      padding: 3px 8px;
+      border-radius: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .radar-pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #38bdf8;
+      box-shadow: 0 0 8px #38bdf8;
+      animation: blinkDot 1.2s infinite;
+    }
+
+    @keyframes blinkDot {
+      0% { opacity: 0.4; transform: scale(0.9); }
+      50% { opacity: 1; transform: scale(1.2); }
+      100% { opacity: 0.4; transform: scale(0.9); }
+    }
+
+    .alarm-metrics-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin: 10px 0;
+      background: rgba(255, 255, 255, 0.05);
+      padding: 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .alarm-metric-item {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .alarm-metric-label {
+      font-size: 10px;
+      color: rgba(255, 255, 255, 0.65);
+      text-transform: uppercase;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+    }
+
+    .alarm-metric-val {
+      font-size: 16px;
+      font-weight: 800;
+      color: #38bdf8;
+      margin-top: 2px;
+    }
+
+    .alarm-progress-wrap {
+      margin-top: 10px;
+      background: rgba(255, 255, 255, 0.1);
+      height: 6px;
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .alarm-progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #38bdf8, #22c55e);
+      width: 15%;
+      border-radius: 4px;
+      transition: width 0.4s ease;
     }
 
     /* Split-Screen Nearby Layout */
@@ -412,7 +516,7 @@
       font-weight: 600;
       color: var(--text-main);
       cursor: pointer;
-      display: flex;
+      display: inline-flex;
       align-items: center;
       gap: 5px;
       transition: all 0.15s ease;
@@ -601,22 +705,69 @@
       box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
     }
 
-    /* MRT Map Tab */
+    /* MRT Map Tab with Interactive Pan & Zoom Controls (Requirement 4) */
     .mrt-map-container {
       width: 100%;
       height: calc(100vh - 105px);
       background: #090d16;
+      position: relative;
+      overflow: auto;
       display: flex;
-      flex-direction: column;
       align-items: center;
       justify-content: center;
-      overflow: hidden;
+      touch-action: pan-x pan-y pinch-zoom;
+    }
+
+    .mrt-map-img-wrapper {
+      transition: transform 0.2s ease-out;
+      transform-origin: center center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 100%;
+      min-height: 100%;
+      padding: 16px;
     }
 
     .mrt-map-img {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
+      max-width: 100%;
+      height: auto;
+      display: block;
+      border-radius: 8px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+      background: #ffffff;
+    }
+
+    .mrt-zoom-controls {
+      position: absolute;
+      right: 16px;
+      bottom: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 100;
+    }
+
+    .mrt-zoom-btn {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: #0f172a;
+      color: #ffffff;
+      border: 1.5px solid rgba(255, 255, 255, 0.25);
+      font-size: 18px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      cursor: pointer;
+      transition: transform 0.15s ease, background 0.15s ease;
+    }
+
+    .mrt-zoom-btn:active {
+      transform: scale(0.92);
+      background: #1e3a8a;
     }
 
     /* Toast Notification (Non-blocking replacement for alert) */
@@ -627,15 +778,15 @@
       transform: translateX(-50%) translateY(-20px);
       background: #0f172a;
       color: #ffffff;
-      padding: 10px 18px;
+      padding: 11px 18px;
       border-radius: 12px;
       font-size: 13px;
       font-weight: 600;
       display: flex;
       align-items: center;
       gap: 8px;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
-      border: 1px solid rgba(255, 255, 255, 0.15);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.2);
       z-index: 9999;
       opacity: 0;
       pointer-events: none;
@@ -698,13 +849,16 @@
     </nav>
   </header>
 
-  <!-- Active Alighting Alarm Banner -->
-  <div class="alarm-banner" id="alarm-banner">
-    <div>
-      <div style="font-weight: 700; font-size: 13px;">&#128276; Alighting Alarm Armed</div>
-      <div id="alarm-banner-sub" style="font-size: 11px; opacity: 0.9;">Tracking distance to destination...</div>
+  <!-- Active Alighting Alarm Top Sticky Quick Banner (Requirement 2) -->
+  <div class="alarm-banner" id="alarm-banner" onclick="scrollToActiveAlarmCard()">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <div class="radar-pulse-dot"></div>
+      <div>
+        <div style="font-weight: 700; font-size: 13px;">&#128276; Alighting Alarm Armed</div>
+        <div id="alarm-banner-sub" style="font-size: 11px; opacity: 0.9;">Tracking distance to destination...</div>
+      </div>
     </div>
-    <button onclick="cancelActiveAlarm()" style="background: rgba(255,255,255,0.25); border: none; color: #fff; padding: 5px 12px; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer;">Cancel</button>
+    <button onclick="cancelActiveAlarm(event)" style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: #fff; padding: 4px 10px; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer;">Cancel</button>
   </div>
 
   <!-- Toast Notification Container -->
@@ -717,6 +871,36 @@
     
     <!-- 1. NEARBY VIEW (SPLIT-SCREEN MAP + LIST) -->
     <section id="view-nearby" class="nearby-container">
+      <!-- Dedicated Active Alarm Card in Nearby Tab (Requirement 2) -->
+      <div class="active-alarm-card" id="nearby-alarm-card">
+        <div class="alarm-card-header">
+          <span class="alarm-radar-tag"><span class="radar-pulse-dot"></span> Active Alarm</span>
+          <button onclick="cancelActiveAlarm(event)" style="background: rgba(255,255,255,0.15); border: none; color: #fff; padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer;">Stop Alarm</button>
+        </div>
+        <div style="font-size: 17px; font-weight: 800;" id="alarm-card-dest-name">Destination Stop</div>
+        <div style="font-size: 12px; color: rgba(255,255,255,0.7); margin-top: 2px;" id="alarm-card-dest-sub">Bus Stop Code</div>
+        <div class="alarm-metrics-grid">
+          <div class="alarm-metric-item">
+            <span class="alarm-metric-label">Distance Left</span>
+            <span class="alarm-metric-val" id="alarm-card-dist">-- m</span>
+          </div>
+          <div class="alarm-metric-item">
+            <span class="alarm-metric-label">Trigger Proximity</span>
+            <span class="alarm-metric-val">500 m</span>
+          </div>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 11px; color: rgba(255,255,255,0.8);">
+          <span>Journey Progress</span>
+          <span id="alarm-card-pct">Approaching...</span>
+        </div>
+        <div class="alarm-progress-wrap">
+          <div class="alarm-progress-bar" id="alarm-progress-bar"></div>
+        </div>
+        <div style="font-size: 11px; color: #38bdf8; margin-top: 8px; display: flex; align-items: center; gap: 4px;">
+          <span>💬 Telegram Chat Wake-Up Alert: <b>ARMED</b></span>
+        </div>
+      </div>
+
       <div class="map-wrapper">
         <div id="nearby-map"></div>
         <button class="gps-fab" onclick="recenterUserGPS()" title="Locate Me">&#127919;</button>
@@ -733,9 +917,36 @@
 
     <!-- 2. FAVOURITES VIEW -->
     <section id="view-fav" style="display: none; background: var(--card-bg); flex: 1;">
+      <!-- Dedicated Active Alarm Card in Favourites Tab (Requirement 2) -->
+      <div class="active-alarm-card" id="fav-alarm-card">
+        <div class="alarm-card-header">
+          <span class="alarm-radar-tag"><span class="radar-pulse-dot"></span> Active Alarm</span>
+          <button onclick="cancelActiveAlarm(event)" style="background: rgba(255,255,255,0.15); border: none; color: #fff; padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer;">Stop Alarm</button>
+        </div>
+        <div style="font-size: 17px; font-weight: 800;" id="fav-alarm-card-dest-name">Destination Stop</div>
+        <div style="font-size: 12px; color: rgba(255,255,255,0.7); margin-top: 2px;" id="fav-alarm-card-dest-sub">Bus Stop Code</div>
+        <div class="alarm-metrics-grid">
+          <div class="alarm-metric-item">
+            <span class="alarm-metric-label">Distance Left</span>
+            <span class="alarm-metric-val" id="fav-alarm-card-dist">-- m</span>
+          </div>
+          <div class="alarm-metric-item">
+            <span class="alarm-metric-label">Trigger Proximity</span>
+            <span class="alarm-metric-val">500 m</span>
+          </div>
+        </div>
+        <div style="font-size: 11px; color: #38bdf8; margin-top: 8px; display: flex; align-items: center; gap: 4px;">
+          <span>💬 Telegram Chat Wake-Up Alert: <b>ARMED</b></span>
+        </div>
+      </div>
+
       <div style="padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-light);">
         <span style="font-size: 12px; font-weight: 700; color: var(--text-sub); text-transform: uppercase;">Saved Bus Stops</span>
-        <button onclick="fetchFavoritesCloud()" style="background: none; border: none; color: var(--brand-primary); font-size: 12px; font-weight: 700; cursor: pointer;">&#128260; Sync</button>
+        <div style="display: flex; gap: 8px;">
+          <button onclick="refreshAllFavoritesTimings()" style="background: none; border: none; color: var(--brand-primary); font-size: 12px; font-weight: 700; cursor: pointer;">&#128260; Refresh All</button>
+          <span style="color: var(--border-light);">|</span>
+          <button onclick="fetchFavoritesCloud()" style="background: none; border: none; color: var(--text-sub); font-size: 12px; font-weight: 600; cursor: pointer;">Sync</button>
+        </div>
       </div>
       <div class="stop-list-scroll" id="fav-stops-list">
         <div class="empty-state">
@@ -754,10 +965,17 @@
       <div id="search-results-list" style="margin-top: 12px;"></div>
     </section>
 
-    <!-- 4. MRT MAP VIEW -->
-    <section id="view-mrt" style="display: none;">
-      <div class="mrt-map-container">
-        <img src="https://www.lta.gov.sg/content/dam/ltagov/getting_around/public_transport/rail_network/image/system-map-with-cr-pce-ccl-icon.jpg" alt="Singapore MRT Network Map" class="mrt-map-img" />
+    <!-- 4. MRT MAP VIEW (Requirement 4: Local High-Res Vector SVG with Zoom/Pan) -->
+    <section id="view-mrt" style="display: none; position: relative;">
+      <div class="mrt-map-container" id="mrt-map-container">
+        <div class="mrt-map-img-wrapper" id="mrt-img-wrapper">
+          <img id="mrt-map-img" src="mrt_map.svg" alt="Singapore MRT & LRT Network Map" class="mrt-map-img" onerror="this.onerror=null; this.src='https://upload.wikimedia.org/wikipedia/commons/6/68/Singapore_MRT_and_LRT_System_Map.svg';" />
+        </div>
+        <div class="mrt-zoom-controls">
+          <button class="mrt-zoom-btn" onclick="zoomMrtMap(0.3)" title="Zoom In">&#65291;</button>
+          <button class="mrt-zoom-btn" onclick="zoomMrtMap(-0.3)" title="Zoom Out">&#65293;</button>
+          <button class="mrt-zoom-btn" onclick="resetMrtZoom()" title="Reset Zoom">&#128260;</button>
+        </div>
       </div>
     </section>
 
@@ -783,14 +1001,63 @@
   <script>
     const API_BASE = "https://blcsjvifiytbznwesmyx.supabase.co/functions/v1/lta_bot";
 
+    // Robust Telegram User ID Resolution (Requirement 3)
     let tgUser = null;
+    function getTelegramUserId() {
+      if (tgUser && tgUser.id) return tgUser.id;
+
+      if (window.Telegram?.WebApp?.initDataUnsafe?.user?.id) {
+        tgUser = window.Telegram.WebApp.initDataUnsafe.user;
+        localStorage.setItem('sg_tg_user_id', String(tgUser.id));
+        return tgUser.id;
+      }
+
+      try {
+        const raw = window.Telegram?.WebApp?.initData;
+        if (raw) {
+          const p = new URLSearchParams(raw);
+          const uStr = p.get('user');
+          if (uStr) {
+            const parsed = JSON.parse(uStr);
+            if (parsed?.id) {
+              tgUser = parsed;
+              localStorage.setItem('sg_tg_user_id', String(parsed.id));
+              return parsed.id;
+            }
+          }
+        }
+      } catch (e) {}
+
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlUid = urlParams.get('userId') || urlParams.get('chatId') || urlParams.get('user_id');
+      if (urlUid) {
+        const parsedUid = parseInt(urlUid, 10);
+        if (!isNaN(parsedUid) && parsedUid > 0) {
+          tgUser = { id: parsedUid };
+          localStorage.setItem('sg_tg_user_id', String(parsedUid));
+          return parsedUid;
+        }
+      }
+
+      const cached = localStorage.getItem('sg_tg_user_id');
+      if (cached) {
+        const parsedCache = parseInt(cached, 10);
+        if (!isNaN(parsedCache) && parsedCache > 0) {
+          tgUser = { id: parsedCache };
+          return parsedCache;
+        }
+      }
+
+      return null;
+    }
+
     if (window.Telegram && window.Telegram.WebApp) {
       try {
         window.Telegram.WebApp.ready();
         window.Telegram.WebApp.expand();
         window.Telegram.WebApp.setHeaderColor('#0b132b');
         window.Telegram.WebApp.setBackgroundColor('#f8fafc');
-        tgUser = window.Telegram.WebApp.initDataUnsafe?.user;
+        getTelegramUserId();
       } catch (e) {
         console.warn("Telegram WebApp init:", e);
       }
@@ -808,7 +1075,7 @@
     }
 
     let toastTimer = null;
-    function showToast(msg, duration = 3000) {
+    function showToast(msg, duration = 3500) {
       const toast = document.getElementById('toast-el');
       const text = document.getElementById('toast-msg');
       if (!toast || !text) return;
@@ -829,17 +1096,20 @@
     let stopMarkers = [];
     let nearbyStopsData = [];
     let favoritesList = [];
-    let serviceFilters = {}; // stopCode -> Set of selected services
+    let serviceFilters = {};
     let activeAlarm = null;
     let watchGpsId = null;
+    let mrtZoomLevel = 1.0;
 
-    // Load Local Cache safely
+    // Safe Cache Initialization
     try {
       favoritesList = JSON.parse(localStorage.getItem('sg_bus_fav_stops') || '[]');
       serviceFilters = JSON.parse(localStorage.getItem('sg_bus_filters') || '{}');
+      activeAlarm = JSON.parse(localStorage.getItem('sg_active_alarm') || 'null');
     } catch (e) {
       favoritesList = [];
       serviceFilters = {};
+      activeAlarm = null;
     }
 
     // Clock
@@ -902,7 +1172,6 @@
       initMap();
       let gpsResolved = false;
 
-      // Timeout fallback: if GPS takes > 2.5s, load default Singapore location so user never hangs
       const fallbackTimer = setTimeout(() => {
         if (!gpsResolved && nearbyStopsData.length === 0) {
           console.log("GPS timeout, fetching default location stops...");
@@ -921,7 +1190,7 @@
             fetchNearbyStops();
           },
           err => {
-            console.warn('GPS error, using default Singapore location:', err);
+            console.warn('GPS error, using default location:', err);
             gpsResolved = true;
             clearTimeout(fallbackTimer);
             updateUserPosition(userLat, userLon);
@@ -942,7 +1211,7 @@
     function recenterUserGPS() {
       haptic('medium');
       if (map) map.setView([userLat, userLon], 16);
-      showToast('📍 Recycled view to current location');
+      showToast('📍 Recentered to your location');
     }
 
     async function fetchNearbyStops() {
@@ -965,7 +1234,7 @@
       }
     }
 
-    // Render Map Pins with Labels (Transit Navy / Blue Theme)
+    // Render Map Pins with Labels
     function renderNearbyMapPins(stops) {
       initMap();
       stopMarkers.forEach(m => map.removeLayer(m));
@@ -1010,8 +1279,6 @@
 
       stops.forEach(s => {
         const isFav = isStopFavorited(s.bus_stop_code);
-        
-        // Accurate distance calculation (no NaN)
         const d = s.distance !== undefined ? s.distance : (s.dist_meters !== undefined ? s.dist_meters : 0);
         const distText = d < 1000 ? Math.round(d) + 'm away' : (d / 1000).toFixed(1) + 'km away';
 
@@ -1043,7 +1310,7 @@
               '<button class="action-pill-btn" onclick="openStopFilter(event, \'' + s.bus_stop_code + '\', \'' + cleanDesc + '\')">&#9881;&#65039; Filter Buses</button>' +
               '<button class="action-pill-btn" onclick="armAlightAlarm(event, \'' + s.bus_stop_code + '\', \'' + cleanDesc + '\', ' + latVal + ', ' + lonVal + ')">&#128276; Alight Alarm</button>' +
             '</div>' +
-            '<div class="bus-services-list" id="services-list-' + s.bus_stop_code + '">' +
+            '<div class="bus-services-list services-list-' + s.bus_stop_code + '" data-bus-services="' + s.bus_stop_code + '" id="services-list-' + s.bus_stop_code + '">' +
               '<div style="font-size: 11px; color: var(--text-sub); padding: 8px 0;">Loading live arrivals...</div>' +
             '</div>' +
           '</div>';
@@ -1073,22 +1340,39 @@
       }
     }
 
-    // Load arrivals and apply custom bus service filter
+    // Load arrivals for a stop and update ALL matching instances in DOM (Fix for Bug 1)
     async function loadArrivalsForStop(stopCode) {
-      const listEl = document.getElementById('services-list-' + stopCode) || document.getElementById('fav-services-' + stopCode);
-      if (!listEl) return;
+      const cleanCode = String(stopCode || '').trim();
+      if (!cleanCode) return;
+
+      const containers = document.querySelectorAll('.services-list-' + cleanCode);
+      if (containers.length === 0) return;
+
+      containers.forEach(el => {
+        el.innerHTML = '<div style="font-size: 12px; color: var(--text-sub); padding: 6px 0;">&#128260; Loading live timings...</div>';
+      });
 
       try {
-        const res = await fetch(API_BASE + '/api/bus-arrivals?stop=' + stopCode);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        const res = await fetch(API_BASE + '/api/bus-arrivals?stop=' + encodeURIComponent(cleanCode), { signal: controller.signal });
+        clearTimeout(timeoutId);
         const data = await res.json();
+
         if (!data.ok || !data.services || data.services.length === 0) {
-          listEl.innerHTML = '<div style="font-size: 12px; color: var(--text-sub); padding: 8px 0;">No active buses operating right now.</div>';
+          containers.forEach(el => {
+            el.innerHTML = '<div style="font-size: 12px; color: var(--text-sub); padding: 8px 0;">No active buses operating right now.</div>';
+          });
           return;
         }
 
-        renderServicesWithFilter(listEl, stopCode, data.services);
+        containers.forEach(el => {
+          renderServicesWithFilter(el, cleanCode, data.services);
+        });
       } catch (e) {
-        listEl.innerHTML = '<div style="font-size: 12px; color: var(--text-sub); padding: 8px 0;">Failed to fetch live timings.</div>';
+        containers.forEach(el => {
+          el.innerHTML = '<div style="font-size: 12px; color: var(--text-sub); padding: 8px 0;">Could not load timings. <button class="action-pill-btn" onclick="loadArrivalsForStop(\'' + cleanCode + '\')" style="display:inline-flex; margin-left:6px; padding:2px 8px; font-size:11px;">&#128260; Retry</button></div>';
+        });
       }
     }
 
@@ -1201,7 +1485,7 @@
           return;
         }
 
-        const currentSavedFilter = serviceFilters[stopCode]; // Array
+        const currentSavedFilter = serviceFilters[stopCode];
         modalBody.innerHTML = '';
 
         modalAvailableServices.forEach(srv => {
@@ -1246,13 +1530,13 @@
       localStorage.setItem('sg_bus_filters', JSON.stringify(serviceFilters));
       closeFilterModal();
 
-      // Cloud sync filter if stop is favorited
-      if (tgUser?.id && isStopFavorited(activeFilterStopCode)) {
+      const uid = getTelegramUserId();
+      if (uid && isStopFavorited(activeFilterStopCode)) {
         fetch(API_BASE + '/api/bus-favorites', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            userId: tgUser.id,
+            userId: uid,
             action: 'update',
             type: 'bus',
             value: activeFilterStopCode,
@@ -1262,7 +1546,6 @@
         }).catch(e => console.warn('Filter sync error:', e));
       }
 
-      // Re-render
       loadArrivalsForStop(activeFilterStopCode);
       showToast('Filters updated successfully');
     }
@@ -1289,7 +1572,6 @@
 
       localStorage.setItem('sg_bus_fav_stops', JSON.stringify(favoritesList));
 
-      // Update UI buttons
       const favBtn = document.getElementById('fav-btn-' + stopCode);
       if (favBtn) {
         favBtn.className = 'action-pill-btn ' + (isAdding ? 'active' : '');
@@ -1300,14 +1582,14 @@
         renderFavoritesView();
       }
 
-      // Cloud sync
-      if (tgUser?.id) {
+      const uid = getTelegramUserId();
+      if (uid) {
         try {
           await fetch(API_BASE + '/api/bus-favorites', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              userId: tgUser.id,
+              userId: uid,
               action: isAdding ? 'add' : 'remove',
               type: 'bus',
               value: stopCode,
@@ -1322,9 +1604,10 @@
     }
 
     async function fetchFavoritesCloud() {
-      if (!tgUser?.id) return;
+      const uid = getTelegramUserId();
+      if (!uid) return;
       try {
-        const res = await fetch(API_BASE + '/api/bus-favorites?userId=' + tgUser.id);
+        const res = await fetch(API_BASE + '/api/bus-favorites?userId=' + uid);
         const data = await res.json();
         if (data.ok && data.favorites) {
           favoritesList = data.favorites.map(f => ({
@@ -1334,7 +1617,6 @@
           }));
           localStorage.setItem('sg_bus_fav_stops', JSON.stringify(favoritesList));
 
-          // Sync filters from metadata
           data.favorites.forEach(f => {
             if (f.metadata?.visible_services) {
               serviceFilters[f.value] = f.metadata.visible_services;
@@ -1342,13 +1624,22 @@
           });
           localStorage.setItem('sg_bus_filters', JSON.stringify(serviceFilters));
 
-          renderFavoritesView();
+          if (currentView === 'fav') {
+            renderFavoritesView();
+          }
         }
       } catch (e) {
         console.error('Fetch cloud favs error:', e);
       }
     }
 
+    function refreshAllFavoritesTimings() {
+      haptic('medium');
+      showToast('Refreshing favorite timings...');
+      favoritesList.forEach(f => loadArrivalsForStop(f.value));
+    }
+
+    // Render Favorites View (Fix for Bug 1)
     function renderFavoritesView() {
       const container = document.getElementById('fav-stops-list');
       if (!container) return;
@@ -1364,48 +1655,69 @@
 
       container.innerHTML = '';
       favoritesList.forEach(f => {
+        const cleanCode = String(f.value || '').trim();
+        const cleanDesc = (f.label || 'Bus Stop ' + cleanCode).replace(/'/g, "");
+
         const card = document.createElement('div');
         card.className = 'stop-item-row expanded';
-        const cleanDesc = (f.label || f.value).replace(/'/g, "");
+        card.id = 'fav-stop-row-' + cleanCode;
 
         card.innerHTML = 
           '<div class="stop-main-header">' +
             '<div class="stop-details-col">' +
-              '<div class="stop-primary-name">' + (f.label || f.value) + '</div>' +
-              '<div class="stop-secondary-road">Bus Stop Code: ' + f.value + '</div>' +
+              '<div class="stop-primary-name">' + cleanDesc + '</div>' +
+              '<div class="stop-secondary-road">Bus Stop Code: ' + cleanCode + '</div>' +
             '</div>' +
             '<div class="stop-trailing-group">' +
-              '<button class="action-pill-btn active" onclick="toggleFavoriteStop(event, \'' + f.value + '\', \'' + cleanDesc + '\')">&#11088; Unpin</button>' +
-              '<button class="action-pill-btn" onclick="openStopFilter(event, \'' + f.value + '\', \'' + cleanDesc + '\')">&#9881;&#65039;</button>' +
+              '<button class="action-pill-btn active" onclick="toggleFavoriteStop(event, \'' + cleanCode + '\', \'' + cleanDesc + '\')">&#11088; Unpin</button>' +
+              '<button class="action-pill-btn" onclick="openStopFilter(event, \'' + cleanCode + '\', \'' + cleanDesc + '\')">&#9881;&#65039;</button>' +
             '</div>' +
           '</div>' +
           '<div class="bus-arrivals-drawer" style="display: flex;">' +
-            '<div class="bus-services-list" id="fav-services-' + f.value + '">' +
+            '<div class="stop-quick-actions" style="margin-bottom: 4px;">' +
+              '<button class="action-pill-btn" onclick="armAlightAlarm(event, \'' + cleanCode + '\', \'' + cleanDesc + '\', 0, 0)">&#128276; Alight Alarm</button>' +
+              '<button class="action-pill-btn" onclick="loadArrivalsForStop(\'' + cleanCode + '\')">&#128260; Refresh</button>' +
+            '</div>' +
+            '<div class="bus-services-list services-list-' + cleanCode + '" data-bus-services="' + cleanCode + '" id="fav-services-' + cleanCode + '">' +
               '<div style="font-size: 11px; color: var(--text-sub); padding: 6px 0;">Loading live timings...</div>' +
             '</div>' +
           '</div>';
 
         container.appendChild(card);
-        loadArrivalsForStop(f.value);
+        loadArrivalsForStop(cleanCode);
       });
     }
 
-    // Alighting Alarm with Telegram Chat Delivery
-    function armAlightAlarm(event, stopCode, stopName, lat, lon) {
+    // Alighting Alarm with Telegram Chat Delivery (Requirements 2 & 3)
+    async function armAlightAlarm(event, stopCode, stopName, lat, lon) {
       if (event) event.stopPropagation();
       haptic('warning');
+
+      let destLat = parseFloat(lat) || 0;
+      let destLon = parseFloat(lon) || 0;
+
+      // If coordinates missing, attempt to grab from nearby list
+      if (!destLat || !destLon) {
+        const found = nearbyStopsData.find(s => s.bus_stop_code === stopCode);
+        if (found?.latitude && found?.longitude) {
+          destLat = found.latitude;
+          destLon = found.longitude;
+        }
+      }
 
       activeAlarm = {
         stopCode,
         stopName,
-        lat: parseFloat(lat),
-        lon: parseFloat(lon),
+        lat: destLat,
+        lon: destLon,
+        initialDist: null,
         thresholdMeters: 500,
-        triggered: false
+        triggered: false,
+        armedAt: Date.now()
       };
 
-      document.getElementById('alarm-banner-sub').innerText = 'Target: ' + stopName + ' (' + stopCode + ') [Radius: 500m]';
-      document.getElementById('alarm-banner').classList.add('active');
+      localStorage.setItem('sg_active_alarm', JSON.stringify(activeAlarm));
+      updateActiveAlarmUI();
 
       if (watchGpsId) navigator.geolocation.clearWatch(watchGpsId);
       watchGpsId = navigator.geolocation.watchPosition(
@@ -1414,31 +1726,107 @@
         { enableHighAccuracy: true, maximumAge: 3000 }
       );
 
-      // Send confirmation to Telegram chat via API
-      if (tgUser?.id) {
-        fetch(API_BASE + '/api/bus-alight', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId: tgUser.id,
-            chatId: tgUser.id,
-            destStopCode: stopCode,
-            destName: stopName,
-            destLat: lat,
-            destLon: lon,
-            thresholdMeters: 500
-          })
-        }).catch(e => console.warn('Alarm sync error:', e));
+      // Deliver to Telegram Chat via Backend API (Requirement 3)
+      const uid = getTelegramUserId();
+      if (uid) {
+        try {
+          const res = await fetch(API_BASE + '/api/bus-alight', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: uid,
+              chatId: uid,
+              destStopCode: stopCode,
+              destName: stopName,
+              destLat: destLat,
+              destLon: destLon,
+              thresholdMeters: 500
+            })
+          });
+          const data = await res.json();
+          if (data.ok && data.messageSent) {
+            showToast('🔔 Alight alarm armed! Confirmation sent to your Telegram chat.', 4000);
+          } else {
+            showToast('🔔 Alight alarm armed in-app!', 3500);
+          }
+        } catch (e) {
+          console.warn('Alarm API sync error:', e);
+          showToast('🔔 Alight alarm armed in-app!', 3500);
+        }
+      } else {
+        showToast('🔔 Alight alarm armed in-app! (Open via Telegram bot chat to receive chat alerts)', 4500);
+      }
+    }
+
+    function updateActiveAlarmUI(currentDist = null) {
+      const banner = document.getElementById('alarm-banner');
+      const nearbyCard = document.getElementById('nearby-alarm-card');
+      const favCard = document.getElementById('fav-alarm-card');
+
+      if (!activeAlarm) {
+        if (banner) banner.classList.remove('active');
+        if (nearbyCard) nearbyCard.classList.remove('active');
+        if (favCard) favCard.classList.remove('active');
+        return;
       }
 
-      showToast('🔔 Alarm armed for ' + stopName + '! Confirmation sent to Telegram chat.', 4000);
+      if (banner) banner.classList.add('active');
+      if (nearbyCard) nearbyCard.classList.add('active');
+      if (favCard) favCard.classList.add('active');
+
+      const distText = currentDist !== null 
+        ? (currentDist < 1000 ? Math.round(currentDist) + 'm' : (currentDist / 1000).toFixed(1) + 'km')
+        : 'Tracking GPS...';
+
+      const bannerSub = document.getElementById('alarm-banner-sub');
+      if (bannerSub) {
+        bannerSub.innerText = activeAlarm.stopName + ' (' + activeAlarm.stopCode + ') • ' + distText;
+      }
+
+      // Update dedicated cards
+      ['alarm-card', 'fav-alarm-card'].forEach(prefix => {
+        const destNameEl = document.getElementById(prefix + '-dest-name');
+        const destSubEl = document.getElementById(prefix + '-dest-sub');
+        const distEl = document.getElementById(prefix + '-dist');
+        if (destNameEl) destNameEl.innerText = activeAlarm.stopName;
+        if (destSubEl) destSubEl.innerText = 'Bus Stop Code: ' + activeAlarm.stopCode + ' • Proximity Wake-Up: 500m';
+        if (distEl) distEl.innerText = distText;
+      });
+
+      // Update Progress Bar
+      if (currentDist !== null && activeAlarm.initialDist) {
+        const total = activeAlarm.initialDist;
+        const remaining = Math.max(0, currentDist - 500);
+        const progress = Math.min(100, Math.max(10, Math.round(((total - remaining) / total) * 100)));
+        const barEl = document.getElementById('alarm-progress-bar');
+        const pctEl = document.getElementById('alarm-card-pct');
+        if (barEl) barEl.style.width = progress + '%';
+        if (pctEl) pctEl.innerText = progress + '% towards stop';
+      }
+    }
+
+    function scrollToActiveAlarmCard() {
+      const card = document.getElementById('nearby-alarm-card');
+      if (card && currentView === 'nearby') {
+        card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
     }
 
     function onAlarmGPSUpdate(pos) {
       if (!activeAlarm || activeAlarm.triggered) return;
-      const dist = computeDistMeters(pos.coords.latitude, pos.coords.longitude, activeAlarm.lat, activeAlarm.lon);
-      const subEl = document.getElementById('alarm-banner-sub');
-      if (subEl) subEl.innerText = Math.round(dist) + 'm away from destination';
+      const lat = pos.coords.latitude;
+      const lon = pos.coords.longitude;
+
+      if (!activeAlarm.lat || !activeAlarm.lon) return;
+
+      const dist = computeDistMeters(lat, lon, activeAlarm.lat, activeAlarm.lon);
+
+      if (activeAlarm.initialDist === null) {
+        activeAlarm.initialDist = dist;
+        localStorage.setItem('sg_active_alarm', JSON.stringify(activeAlarm));
+      }
+
+      updateActiveAlarmUI(dist);
 
       if (dist <= activeAlarm.thresholdMeters) {
         activeAlarm.triggered = true;
@@ -1450,14 +1838,14 @@
       haptic('warning');
       haptic('success');
 
-      // Send Telegram wake-up message to chat
-      if (tgUser?.id) {
+      const uid = getTelegramUserId();
+      if (uid) {
         fetch(API_BASE + '/api/bus-alight-trigger', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            userId: tgUser.id,
-            chatId: tgUser.id,
+            userId: uid,
+            chatId: uid,
             destStopCode: activeAlarm.stopCode,
             destName: activeAlarm.stopName,
             distance: dist
@@ -1469,14 +1857,16 @@
       cancelActiveAlarm();
     }
 
-    function cancelActiveAlarm() {
+    function cancelActiveAlarm(event) {
+      if (event) event.stopPropagation();
       activeAlarm = null;
+      localStorage.removeItem('sg_active_alarm');
+
       if (watchGpsId) {
         navigator.geolocation.clearWatch(watchGpsId);
         watchGpsId = null;
       }
-      const banner = document.getElementById('alarm-banner');
-      if (banner) banner.classList.remove('active');
+      updateActiveAlarmUI();
       showToast('Alighting alarm cancelled');
     }
 
@@ -1488,6 +1878,25 @@
       const dLam = (lon2 - lon1) * Math.PI / 180;
       const a = Math.sin(dPhi/2)**2 + Math.cos(phi1)*Math.cos(phi2)*Math.sin(dLam/2)**2;
       return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    // MRT Map Zoom / Pan Controls (Requirement 4)
+    function zoomMrtMap(delta) {
+      mrtZoomLevel = Math.max(0.6, Math.min(3.5, mrtZoomLevel + delta));
+      applyMrtTransform();
+    }
+
+    function resetMrtZoom() {
+      mrtZoomLevel = 1.0;
+      applyMrtTransform();
+      showToast('MRT Map Zoom Reset');
+    }
+
+    function applyMrtTransform() {
+      const wrapper = document.getElementById('mrt-img-wrapper');
+      if (wrapper) {
+        wrapper.style.transform = 'scale(' + mrtZoomLevel + ')';
+      }
     }
 
     // Search View Logic
@@ -1520,28 +1929,30 @@
       }
       container.innerHTML = '';
       stops.forEach(s => {
-        const row = document.createElement('div');
-        row.className = 'stop-item-row';
-        row.id = 'stop-row-' + s.bus_stop_code;
+        const cleanCode = s.bus_stop_code;
         const cleanDesc = (s.description || 'Bus Stop').replace(/'/g, "");
         const latVal = s.latitude || 0;
         const lonVal = s.longitude || 0;
 
+        const row = document.createElement('div');
+        row.className = 'stop-item-row';
+        row.id = 'stop-row-' + cleanCode;
+
         row.innerHTML = 
-          '<div class="stop-main-header" onclick="toggleStopExpansion(\'' + s.bus_stop_code + '\')">' +
+          '<div class="stop-main-header" onclick="toggleStopExpansion(\'' + cleanCode + '\')">' +
             '<span class="chevron-icon">&#9660;</span>' +
             '<div class="stop-details-col">' +
               '<div class="stop-primary-name">' + s.description + '</div>' +
-              '<div class="stop-secondary-road">' + s.road_name + ' (' + s.bus_stop_code + ')</div>' +
+              '<div class="stop-secondary-road">' + s.road_name + ' (' + cleanCode + ')</div>' +
             '</div>' +
           '</div>' +
-          '<div class="bus-arrivals-drawer" id="arrivals-drawer-' + s.bus_stop_code + '">' +
+          '<div class="bus-arrivals-drawer" id="arrivals-drawer-' + cleanCode + '">' +
             '<div class="stop-quick-actions">' +
-              '<button class="action-pill-btn" onclick="toggleFavoriteStop(event, \'' + s.bus_stop_code + '\', \'' + cleanDesc + ' (' + s.bus_stop_code + ')\')">&#11088; Save Stop</button>' +
-              '<button class="action-pill-btn" onclick="openStopFilter(event, \'' + s.bus_stop_code + '\', \'' + cleanDesc + '\')">&#9881;&#65039; Filter</button>' +
-              '<button class="action-pill-btn" onclick="armAlightAlarm(event, \'' + s.bus_stop_code + '\', \'' + cleanDesc + '\', ' + latVal + ', ' + lonVal + ')">&#128276; Alarm</button>' +
+              '<button class="action-pill-btn" onclick="toggleFavoriteStop(event, \'' + cleanCode + '\', \'' + cleanDesc + ' (' + cleanCode + ')\')">&#11088; Save Stop</button>' +
+              '<button class="action-pill-btn" onclick="openStopFilter(event, \'' + cleanCode + '\', \'' + cleanDesc + '\')">&#9881;&#65039; Filter</button>' +
+              '<button class="action-pill-btn" onclick="armAlightAlarm(event, \'' + cleanCode + '\', \'' + cleanDesc + '\', ' + latVal + ', ' + lonVal + ')">&#128276; Alarm</button>' +
             '</div>' +
-            '<div class="bus-services-list" id="services-list-' + s.bus_stop_code + '">' +
+            '<div class="bus-services-list services-list-' + cleanCode + '" data-bus-services="' + cleanCode + '" id="services-list-' + cleanCode + '">' +
               '<div style="font-size: 11px; color: var(--text-sub); padding: 8px 0;">Loading arrivals...</div>' +
             '</div>' +
           '</div>';
@@ -1554,7 +1965,7 @@
       haptic('medium');
       showToast('Refreshing live data...');
       if (currentView === 'nearby') fetchNearbyStops();
-      else if (currentView === 'fav') fetchFavoritesCloud();
+      else if (currentView === 'fav') refreshAllFavoritesTimings();
     }
 
     // Auto Refresh cycle (30s)
@@ -1583,7 +1994,15 @@
     window.addEventListener('DOMContentLoaded', () => {
       initGPS();
       handleDeepLink();
-      if (tgUser?.id) fetchFavoritesCloud();
+      updateActiveAlarmUI();
+      if (activeAlarm) {
+        watchGpsId = navigator.geolocation.watchPosition(
+          onAlarmGPSUpdate,
+          err => console.warn('Alarm GPS resume error:', err),
+          { enableHighAccuracy: true, maximumAge: 3000 }
+        );
+      }
+      fetchFavoritesCloud();
     });
   </script>
 </body>

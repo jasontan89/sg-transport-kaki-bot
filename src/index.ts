@@ -232,9 +232,11 @@ function getPersistentAppKeyboard() {
     .persistent();
 }
 
-function getMainMenuKeyboard() {
+function getMainMenuKeyboard(userId?: number) {
   const superMapUrl = "https://jasontan89.github.io/sg-transport-kaki-bot/super-map.html";
-  const busAppUrl = "https://jasontan89.github.io/sg-transport-kaki-bot/bus-app.html";
+  const busAppUrl = userId 
+    ? `https://jasontan89.github.io/sg-transport-kaki-bot/bus-app.html?userId=${userId}`
+    : "https://jasontan89.github.io/sg-transport-kaki-bot/bus-app.html";
   return new InlineKeyboard()
     .webApp("🚌 Launch SG Transport Kaki WebApp", busAppUrl).row()
     .webApp("🗺️ All-in-One Transit Super-Map", superMapUrl).row()
@@ -510,8 +512,9 @@ async function renderBusArrivals(ctx: any, messageId: number | null, stopCode: s
       isFavorited = (userFavs || []).some((f: any) => (f.type === 'bus' || f.type === 'bus_stop') && f.value === stopCode);
     }
     const favBtnText = isFavorited ? "⭐ Saved (Tap to Remove)" : "⭐ Save to Favorites";
-    const favAction = isFavorited ? `unfav_bus_${stopCode}` : `fav_bus_${stopCode}`;
-    const busAppUrl = `https://jasontan89.github.io/sg-transport-kaki-bot/bus-app.html?stop=${stopCode}`;
+    const busAppUrl = userId 
+      ? `https://jasontan89.github.io/sg-transport-kaki-bot/bus-app.html?stop=${stopCode}&userId=${userId}` 
+      : `https://jasontan89.github.io/sg-transport-kaki-bot/bus-app.html?stop=${stopCode}`;
 
     const keyboard = new InlineKeyboard()
       .text("🔄 Refresh", `get_bus_${stopCode}`)
@@ -2792,7 +2795,10 @@ bot.command(["supermap", "map", "transitmap"], async (ctx) => {
 });
 
 bot.command(["bus", "busapp", "kaki", "busleh"], async (ctx) => {
-  const busAppUrl = "https://jasontan89.github.io/sg-transport-kaki-bot/bus-app.html";
+  const userId = ctx.from?.id;
+  const busAppUrl = userId 
+    ? `https://jasontan89.github.io/sg-transport-kaki-bot/bus-app.html?userId=${userId}` 
+    : "https://jasontan89.github.io/sg-transport-kaki-bot/bus-app.html";
   const keyboard = new InlineKeyboard()
     .webApp("🚌 Launch SG Transport Kaki", busAppUrl).row()
     .text("🔙 Back to Main Menu", "menu_main");
@@ -4805,13 +4811,32 @@ Deno.serve(async (req) => {
           const userId = parseInt(body.userId, 10);
           const chatId = parseInt(body.chatId, 10) || userId;
           const destStopCode = String(body.destStopCode || "");
-          const destName = String(body.destName || destStopCode);
-          const destLat = parseFloat(body.destLat);
-          const destLon = parseFloat(body.destLon);
+          let destName = String(body.destName || destStopCode);
+          let destLat = parseFloat(body.destLat);
+          let destLon = parseFloat(body.destLon);
           const thresholdMeters = parseInt(body.thresholdMeters, 10) || 500;
 
-          if (!userId || !destStopCode || isNaN(destLat) || isNaN(destLon)) {
-            return new Response(JSON.stringify({ error: "Invalid alighting parameters" }), {
+          if (!userId || !destStopCode) {
+            return new Response(JSON.stringify({ error: "Invalid parameters: missing userId or destStopCode" }), {
+              status: 400,
+              headers: { "content-type": "application/json", "access-control-allow-origin": "*" }
+            });
+          }
+
+          // Fallback coordinate lookup if coordinates weren't provided or are 0/NaN
+          if (isNaN(destLat) || isNaN(destLon) || !destLat || !destLon) {
+            const stop = await getBusStopByCode(destStopCode).catch(() => null);
+            if (stop?.latitude && stop?.longitude) {
+              destLat = stop.latitude;
+              destLon = stop.longitude;
+              if (!destName || destName === destStopCode) {
+                destName = stop.description;
+              }
+            }
+          }
+
+          if (isNaN(destLat) || isNaN(destLon)) {
+            return new Response(JSON.stringify({ error: "Could not find coordinates for destination stop" }), {
               status: 400,
               headers: { "content-type": "application/json", "access-control-allow-origin": "*" }
             });
@@ -4820,6 +4845,7 @@ Deno.serve(async (req) => {
           const alarm = await createAlightingAlarm(userId, chatId, destStopCode, destName, destLat, destLon, thresholdMeters);
 
           // Deliver confirmation directly into Telegram chat
+          let messageSent = false;
           try {
             const cancelKb = new InlineKeyboard().text("⏹️ Cancel Alight Alarm", "alight_cancel_active");
             await bot.api.sendMessage(
@@ -4830,11 +4856,12 @@ Deno.serve(async (req) => {
               `📡 <i>Tracking your bus journey. You will receive real-time alerts in the WebApp and right here in Telegram as you approach your stop!</i>`,
               { parse_mode: "HTML", reply_markup: cancelKb }
             );
-          } catch (msgErr) {
+            messageSent = true;
+          } catch (msgErr: any) {
             console.error("Failed to send bot alarm confirmation message:", msgErr);
           }
 
-          return new Response(JSON.stringify({ ok: true, alarm }), {
+          return new Response(JSON.stringify({ ok: true, alarm, messageSent }), {
             headers: { "content-type": "application/json", "access-control-allow-origin": "*" }
           });
         } catch (e: any) {
