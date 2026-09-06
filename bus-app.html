@@ -3,34 +3,34 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>SG BusLeh</title>
+  <title>SG Transport Kaki</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
     :root {
-      --brand-red: #e53935;
-      --brand-red-dark: #c62828;
-      --bg: #f5f6f8;
+      --brand-primary: #2563eb;
+      --brand-primary-dark: #1d4ed8;
+      --brand-accent: #38bdf8;
+      --brand-header-bg: linear-gradient(135deg, #0b132b 0%, #1c2541 50%, #1e3a8a 100%);
+      --bg: #f8fafc;
       --card-bg: #ffffff;
-      --text-main: #1f2328;
-      --text-sub: #656d76;
-      --border-light: #e1e4e8;
-      --primary: #e53935;
-      --accent-green: #2ea44f;
-      --accent-amber: #d29922;
-      --accent-red: #cf222e;
+      --text-main: #0f172a;
+      --text-sub: #64748b;
+      --border-light: #e2e8f0;
+      --accent-green: #16a34a;
+      --accent-amber: #d97706;
+      --accent-purple: #7c3aed;
       --pill-radius: 6px;
     }
 
-    /* Dark Mode Theme adaptation (if user Telegram is dark) */
     @media (prefers-color-scheme: dark) {
       :root {
-        --bg: #12161f;
-        --card-bg: #1a2130;
-        --text-main: #f0f6fc;
-        --text-sub: #8b949e;
-        --border-light: rgba(255, 255, 255, 0.1);
+        --bg: #090d16;
+        --card-bg: #131b2e;
+        --text-main: #f8fafc;
+        --text-sub: #94a3b8;
+        --border-light: rgba(255, 255, 255, 0.08);
       }
     }
 
@@ -38,7 +38,7 @@
       box-sizing: border-box;
       margin: 0;
       padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Roboto", "Segoe UI", Helvetica, Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       -webkit-tap-highlight-color: transparent;
     }
 
@@ -49,75 +49,105 @@
       display: flex;
       flex-direction: column;
       overflow-x: hidden;
-      padding-bottom: 20px;
+      padding-bottom: 24px;
     }
 
-    /* SG BusLeh Iconic Red App Bar */
+    /* SG Transport Kaki App Bar (Modern Transit Navy/Blue Theme) */
     .app-header {
-      background: var(--brand-red);
+      background: var(--brand-header-bg);
       color: #ffffff;
       position: sticky;
       top: 0;
       z-index: 1000;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      box-shadow: 0 4px 14px rgba(11, 19, 43, 0.35);
     }
 
     .header-top {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 10px 16px 6px 16px;
+      padding: 12px 16px 8px 16px;
     }
 
     .header-title {
-      font-size: 19px;
-      font-weight: 700;
-      letter-spacing: 0.2px;
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: 0.3px;
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
+    }
+
+    .header-badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 7px;
+      background: rgba(56, 189, 248, 0.2);
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      color: var(--brand-accent);
+      border-radius: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
 
     .header-icons {
       display: flex;
       align-items: center;
-      gap: 14px;
-      font-size: 17px;
+      gap: 12px;
+    }
+
+    .header-clock-pill {
+      font-size: 11px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.85);
+      background: rgba(255, 255, 255, 0.1);
+      padding: 3px 8px;
+      border-radius: 12px;
+      letter-spacing: 0.2px;
     }
 
     .header-icon-btn {
-      background: none;
+      background: rgba(255, 255, 255, 0.12);
       border: none;
       color: #ffffff;
       cursor: pointer;
-      font-size: 17px;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
+      font-size: 15px;
+      transition: background 0.15s ease;
     }
 
-    /* Tabs Bar (Exactly matching SG BusLeh screenshot) */
+    .header-icon-btn:active {
+      background: rgba(255, 255, 255, 0.25);
+    }
+
+    /* Tabs Bar */
     .tabs-bar {
       display: flex;
-      overflow-x: auto;
-      border-top: 1px solid rgba(255, 255, 255, 0.15);
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(11, 19, 43, 0.4);
+      backdrop-filter: blur(8px);
     }
 
     .tab-btn {
       flex: 1;
-      padding: 10px 8px;
+      padding: 10px 6px;
       text-align: center;
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.6px;
-      color: rgba(255, 255, 255, 0.75);
+      letter-spacing: 0.5px;
+      color: rgba(255, 255, 255, 0.65);
       background: none;
       border: none;
       cursor: pointer;
       position: relative;
       white-space: nowrap;
-      transition: color 0.15s ease;
+      transition: all 0.2s ease;
     }
 
     .tab-btn.active {
@@ -128,35 +158,37 @@
       content: '';
       position: absolute;
       bottom: 0;
-      left: 15%;
-      right: 15%;
-      height: 3.5px;
-      background: #ffffff;
+      left: 18%;
+      right: 18%;
+      height: 3px;
+      background: var(--brand-accent);
       border-radius: 3px 3px 0 0;
+      box-shadow: 0 0 8px rgba(56, 189, 248, 0.8);
     }
 
-    /* Active Alighting Alarm Banner */
+    /* Active Alighting Alarm Banner (Midnight Indigo / Cyan Glow) */
     .alarm-banner {
       display: none;
-      background: linear-gradient(135deg, #d32f2f, #b71c1c);
+      background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+      border-bottom: 1px solid #4338ca;
       color: #fff;
-      padding: 10px 14px;
+      padding: 10px 16px;
       align-items: center;
       justify-content: space-between;
-      animation: pulseAlert 2s infinite;
+      animation: bannerGlow 2.5s infinite;
     }
 
     .alarm-banner.active {
       display: flex;
     }
 
-    @keyframes pulseAlert {
-      0% { opacity: 0.95; }
-      50% { opacity: 1; filter: brightness(1.1); }
-      100% { opacity: 0.95; }
+    @keyframes bannerGlow {
+      0% { box-shadow: inset 0 0 10px rgba(56, 189, 248, 0.1); }
+      50% { box-shadow: inset 0 0 18px rgba(56, 189, 248, 0.3); }
+      100% { box-shadow: inset 0 0 10px rgba(56, 189, 248, 0.1); }
     }
 
-    /* Split-Screen Nearby Layout (Screenshot replication) */
+    /* Split-Screen Nearby Layout */
     .nearby-container {
       display: flex;
       flex-direction: column;
@@ -168,7 +200,7 @@
       position: relative;
       width: 100%;
       height: 250px;
-      background: #e5e3df;
+      background: #e2e8f0;
       border-bottom: 2px solid var(--border-light);
       z-index: 10;
     }
@@ -178,12 +210,12 @@
       height: 100%;
     }
 
-    /* Custom Leaflet Pins matching SG BusLeh */
+    /* Custom Leaflet Pins (Transit Blue / Slate Callout) */
     .user-avatar-marker {
       font-size: 26px;
       text-align: center;
       line-height: 1;
-      filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
+      filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.45));
     }
 
     .bus-stop-pin {
@@ -195,55 +227,60 @@
     }
 
     .pin-dot {
-      width: 14px;
-      height: 14px;
+      width: 15px;
+      height: 15px;
       border-radius: 50%;
-      background: #d32f2f;
+      background: #2563eb;
       border: 2.5px solid #ffffff;
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.35);
+      box-shadow: 0 2px 6px rgba(15, 23, 42, 0.45);
     }
 
     .pin-label {
-      background: rgba(183, 28, 28, 0.88);
+      background: #0f172a;
       color: #ffffff;
       font-size: 10px;
       font-weight: 700;
-      padding: 2px 6px;
-      border-radius: 4px;
+      padding: 3px 7px;
+      border-radius: 5px;
       white-space: nowrap;
-      margin-bottom: 2px;
-      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
-      max-width: 120px;
+      margin-bottom: 3px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+      max-width: 130px;
       overflow: hidden;
       text-overflow: ellipsis;
     }
 
-    /* Floating Red GPS Target FAB */
+    /* Floating Royal Blue GPS FAB */
     .gps-fab {
       position: absolute;
       right: 14px;
       bottom: 14px;
-      width: 46px;
-      height: 46px;
+      width: 44px;
+      height: 44px;
       border-radius: 50%;
-      background: #d32f2f;
+      background: #2563eb;
       color: #ffffff;
-      border: none;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+      border: 2px solid #ffffff;
+      box-shadow: 0 4px 14px rgba(37, 99, 235, 0.45);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 20px;
+      font-size: 19px;
       cursor: pointer;
       z-index: 500;
-      transition: transform 0.15s ease;
+      transition: transform 0.15s ease, background 0.15s ease;
+    }
+
+    .gps-fab:hover {
+      background: #1d4ed8;
     }
 
     .gps-fab:active {
       transform: scale(0.92);
     }
 
-    /* Bus Stop List Section (Screenshot replication) */
+    /* Bus Stop List Section */
     .stop-list-scroll {
       flex: 1;
       background: var(--card-bg);
@@ -256,7 +293,7 @@
     }
 
     .stop-item-row.expanded {
-      background: rgba(229, 57, 53, 0.03);
+      background: rgba(37, 99, 235, 0.03);
     }
 
     .stop-main-header {
@@ -272,17 +309,17 @@
     }
 
     .chevron-icon {
-      font-size: 16px;
+      font-size: 15px;
       color: var(--text-sub);
       margin-right: 14px;
-      transition: transform 0.2s ease;
+      transition: transform 0.2s ease, color 0.2s ease;
       width: 16px;
       text-align: center;
     }
 
     .stop-item-row.expanded .chevron-icon {
       transform: rotate(180deg);
-      color: var(--brand-red);
+      color: var(--brand-primary);
     }
 
     .stop-details-col {
@@ -290,17 +327,24 @@
       display: flex;
       flex-direction: column;
       gap: 2px;
+      min-width: 0;
     }
 
     .stop-primary-name {
       font-size: 15px;
       font-weight: 700;
       color: var(--text-main);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .stop-secondary-road {
       font-size: 12px;
       color: var(--text-sub);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .stop-trailing-group {
@@ -311,24 +355,30 @@
 
     .stop-distance-badge {
       font-size: 11px;
-      font-weight: 600;
-      color: var(--text-sub);
-      background: rgba(0, 0, 0, 0.05);
-      padding: 2px 7px;
+      font-weight: 700;
+      color: var(--brand-primary);
+      background: rgba(37, 99, 235, 0.1);
+      padding: 3px 8px;
       border-radius: 12px;
+      white-space: nowrap;
     }
 
     .kebab-menu-btn {
       background: none;
       border: none;
       color: var(--text-sub);
-      font-size: 18px;
+      font-size: 19px;
       cursor: pointer;
-      padding: 4px;
+      padding: 4px 6px;
       line-height: 1;
+      border-radius: 6px;
     }
 
-    /* Expandable Bus Arrival Cards */
+    .kebab-menu-btn:active {
+      background: rgba(0, 0, 0, 0.06);
+    }
+
+    /* Expandable Bus Arrival Drawer */
     .bus-arrivals-drawer {
       display: none;
       padding: 0 16px 14px 44px;
@@ -345,42 +395,48 @@
     .stop-quick-actions {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      padding: 6px 0;
+      justify-content: flex-start;
+      gap: 8px;
+      padding: 8px 0;
       border-bottom: 1px solid var(--border-light);
-      margin-bottom: 4px;
+      margin-bottom: 6px;
+      flex-wrap: wrap;
     }
 
     .action-pill-btn {
-      background: none;
-      border: 1px solid var(--border-light);
-      border-radius: 6px;
-      padding: 4px 10px;
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--text-sub);
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-
-    .action-pill-btn.active {
-      background: rgba(227, 179, 65, 0.15);
-      border-color: #d29922;
-      color: #d29922;
-    }
-
-    /* SGBusLeh Triple-Pill Card */
-    .service-card {
       background: var(--bg);
       border: 1px solid var(--border-light);
       border-radius: 8px;
-      padding: 8px 12px;
+      padding: 5px 11px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-main);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.15s ease;
+    }
+
+    .action-pill-btn.active {
+      background: rgba(217, 119, 6, 0.12);
+      border-color: #d97706;
+      color: #b45309;
+    }
+
+    .action-pill-btn:active {
+      transform: scale(0.96);
+    }
+
+    /* Bus Arrival Cards */
+    .service-card {
+      background: var(--bg);
+      border: 1px solid var(--border-light);
+      border-radius: 10px;
+      padding: 10px 12px;
       display: flex;
       flex-direction: column;
       gap: 6px;
-      cursor: pointer;
     }
 
     .service-card-top {
@@ -390,15 +446,16 @@
     }
 
     .service-no-badge {
-      font-size: 17px;
+      font-size: 18px;
       font-weight: 800;
       color: var(--text-main);
-      min-width: 48px;
+      min-width: 50px;
+      letter-spacing: -0.3px;
     }
 
     .pills-cluster {
       display: flex;
-      gap: 5px;
+      gap: 6px;
     }
 
     .timing-pill {
@@ -409,26 +466,26 @@
       border-radius: var(--pill-radius);
       font-size: 12px;
       font-weight: 700;
-      min-width: 46px;
+      min-width: 48px;
       justify-content: center;
     }
 
     .load-sea {
-      background: rgba(46, 164, 79, 0.15);
-      border: 1px solid rgba(46, 164, 79, 0.4);
+      background: rgba(22, 163, 74, 0.12);
+      border: 1px solid rgba(22, 163, 74, 0.35);
       color: var(--accent-green);
     }
 
     .load-sda {
-      background: rgba(210, 153, 34, 0.15);
-      border: 1px solid rgba(210, 153, 34, 0.4);
+      background: rgba(217, 119, 6, 0.12);
+      border: 1px solid rgba(217, 119, 6, 0.35);
       color: var(--accent-amber);
     }
 
     .load-lsd {
-      background: rgba(207, 34, 46, 0.15);
-      border: 1px solid rgba(207, 34, 46, 0.4);
-      color: var(--accent-red);
+      background: rgba(124, 58, 237, 0.12);
+      border: 1px solid rgba(124, 58, 237, 0.35);
+      color: var(--accent-purple);
     }
 
     .load-none {
@@ -452,7 +509,8 @@
       left: 0;
       right: 0;
       bottom: 0;
-      background: rgba(0, 0, 0, 0.6);
+      background: rgba(15, 23, 42, 0.65);
+      backdrop-filter: blur(4px);
       z-index: 2000;
       align-items: center;
       justify-content: center;
@@ -465,20 +523,21 @@
 
     .modal-card {
       background: var(--card-bg);
-      border-radius: 14px;
+      border-radius: 16px;
       width: 100%;
       max-width: 360px;
       max-height: 80vh;
       display: flex;
       flex-direction: column;
       overflow: hidden;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+      box-shadow: 0 16px 36px rgba(0,0,0,0.35);
+      border: 1px solid var(--border-light);
     }
 
     .modal-header {
-      background: var(--brand-red);
+      background: var(--brand-header-bg);
       color: #fff;
-      padding: 14px 16px;
+      padding: 14px 18px;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -495,21 +554,24 @@
       flex: 1;
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 8px;
     }
 
     .filter-item {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 8px 10px;
-      border-radius: 8px;
+      padding: 10px 12px;
+      border-radius: 10px;
       background: var(--bg);
       cursor: pointer;
+      border: 1px solid var(--border-light);
+      font-size: 14px;
+      font-weight: 600;
     }
 
     .modal-footer {
-      padding: 10px 16px;
+      padding: 12px 18px;
       border-top: 1px solid var(--border-light);
       display: flex;
       justify-content: flex-end;
@@ -520,28 +582,30 @@
       background: none;
       border: 1px solid var(--border-light);
       color: var(--text-sub);
-      padding: 6px 14px;
+      padding: 7px 14px;
       border-radius: 8px;
       font-size: 12px;
+      font-weight: 600;
       cursor: pointer;
     }
 
     .btn-primary {
-      background: var(--brand-red);
+      background: var(--brand-primary);
       border: none;
       color: #fff;
-      padding: 6px 16px;
+      padding: 7px 18px;
       border-radius: 8px;
       font-size: 12px;
       font-weight: 700;
       cursor: pointer;
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
     }
 
     /* MRT Map Tab */
     .mrt-map-container {
       width: 100%;
-      height: calc(100vh - 95px);
-      background: #12161f;
+      height: calc(100vh - 105px);
+      background: #090d16;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -555,19 +619,50 @@
       object-fit: contain;
     }
 
+    /* Toast Notification (Non-blocking replacement for alert) */
+    .toast-container {
+      position: fixed;
+      top: 60px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-20px);
+      background: #0f172a;
+      color: #ffffff;
+      padding: 10px 18px;
+      border-radius: 12px;
+      font-size: 13px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      z-index: 9999;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      max-width: 90%;
+      text-align: center;
+    }
+
+    .toast-container.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+      pointer-events: auto;
+    }
+
     /* Skeleton Loading */
     .skeleton-bar {
-      height: 14px;
+      height: 16px;
       background: rgba(0, 0, 0, 0.08);
-      border-radius: 4px;
-      margin-bottom: 6px;
+      border-radius: 6px;
+      margin-bottom: 8px;
       animation: pulseSkel 1.5s infinite;
     }
 
     @keyframes pulseSkel {
-      0% { opacity: 0.5; }
+      0% { opacity: 0.4; }
       50% { opacity: 0.85; }
-      100% { opacity: 0.5; }
+      100% { opacity: 0.4; }
     }
 
     /* Empty State */
@@ -580,14 +675,16 @@
 </head>
 <body>
 
-  <!-- SG BusLeh Red Header -->
+  <!-- SG Transport Kaki Header (Navy/Blue Modern Transit Theme) -->
   <header class="app-header">
     <div class="header-top">
       <div class="header-title">
-        <span>SG BusLeh</span>
+        <span style="font-size: 20px;">🇸🇬</span>
+        <span>SG Transport Kaki</span>
+        <span class="header-badge">Live</span>
       </div>
       <div class="header-icons">
-        <span id="header-clock" style="font-size: 12px; font-weight: 600; opacity: 0.9;">--:-- SGT</span>
+        <span class="header-clock-pill" id="header-clock">--:-- SGT</span>
         <button class="header-icon-btn" onclick="manualRefresh()" title="Refresh">&#128260;</button>
       </div>
     </div>
@@ -607,22 +704,29 @@
       <div style="font-weight: 700; font-size: 13px;">&#128276; Alighting Alarm Armed</div>
       <div id="alarm-banner-sub" style="font-size: 11px; opacity: 0.9;">Tracking distance to destination...</div>
     </div>
-    <button onclick="cancelActiveAlarm()" style="background: rgba(255,255,255,0.25); border: none; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer;">Cancel</button>
+    <button onclick="cancelActiveAlarm()" style="background: rgba(255,255,255,0.25); border: none; color: #fff; padding: 5px 12px; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer;">Cancel</button>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toast-el">
+    <span id="toast-msg">Notice</span>
   </div>
 
   <!-- MAIN VIEWS CONTAINER -->
   <main style="flex: 1; display: flex; flex-direction: column;">
     
-    <!-- 1. NEARBY VIEW (SPLIT-SCREEN EXACTLY LIKE SGBUSLEH) -->
+    <!-- 1. NEARBY VIEW (SPLIT-SCREEN MAP + LIST) -->
     <section id="view-nearby" class="nearby-container">
       <div class="map-wrapper">
         <div id="nearby-map"></div>
         <button class="gps-fab" onclick="recenterUserGPS()" title="Locate Me">&#127919;</button>
       </div>
       <div class="stop-list-scroll" id="nearby-stops-list">
-        <div style="padding: 20px;">
-          <div class="skeleton-bar" style="width: 40%;"></div>
-          <div class="skeleton-bar" style="width: 70%;"></div>
+        <div style="padding: 24px;">
+          <div class="skeleton-bar" style="width: 45%;"></div>
+          <div class="skeleton-bar" style="width: 75%;"></div>
+          <div class="skeleton-bar" style="width: 60%; margin-top: 16px;"></div>
+          <div class="skeleton-bar" style="width: 85%;"></div>
         </div>
       </div>
     </section>
@@ -631,7 +735,7 @@
     <section id="view-fav" style="display: none; background: var(--card-bg); flex: 1;">
       <div style="padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-light);">
         <span style="font-size: 12px; font-weight: 700; color: var(--text-sub); text-transform: uppercase;">Saved Bus Stops</span>
-        <button onclick="fetchFavoritesCloud()" style="background: none; border: none; color: var(--brand-red); font-size: 12px; font-weight: 700; cursor: pointer;">&#128260; Sync</button>
+        <button onclick="fetchFavoritesCloud()" style="background: none; border: none; color: var(--brand-primary); font-size: 12px; font-weight: 700; cursor: pointer;">&#128260; Sync</button>
       </div>
       <div class="stop-list-scroll" id="fav-stops-list">
         <div class="empty-state">
@@ -659,12 +763,12 @@
 
   </main>
 
-  <!-- Bus Service Filter Modal (SG BusLeh Customization) -->
+  <!-- Bus Service Filter Modal -->
   <div class="modal-overlay" id="filter-modal">
     <div class="modal-card">
       <div class="modal-header">
         <h3 id="filter-modal-title">Filter Buses for Stop</h3>
-        <button onclick="closeFilterModal()" style="background: none; border: none; color: #fff; font-size: 16px; cursor: pointer;">&#10005;</button>
+        <button onclick="closeFilterModal()" style="background: none; border: none; color: #fff; font-size: 18px; cursor: pointer;">&#10005;</button>
       </div>
       <div class="modal-body" id="filter-modal-body">
         <!-- List of checkboxes for each service -->
@@ -681,22 +785,39 @@
 
     let tgUser = null;
     if (window.Telegram && window.Telegram.WebApp) {
-      window.Telegram.WebApp.ready();
-      window.Telegram.WebApp.expand();
       try {
-        window.Telegram.WebApp.setHeaderColor('#e53935');
-        window.Telegram.WebApp.setBackgroundColor('#f5f6f8');
+        window.Telegram.WebApp.ready();
+        window.Telegram.WebApp.expand();
+        window.Telegram.WebApp.setHeaderColor('#0b132b');
+        window.Telegram.WebApp.setBackgroundColor('#f8fafc');
         tgUser = window.Telegram.WebApp.initDataUnsafe?.user;
-      } catch (e) {}
+      } catch (e) {
+        console.warn("Telegram WebApp init:", e);
+      }
     }
 
     function haptic(type = 'light') {
-      if (window.Telegram?.WebApp?.HapticFeedback) {
-        if (type === 'selection') window.Telegram.WebApp.HapticFeedback.selectionChanged();
-        else if (type === 'success') window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
-        else if (type === 'warning') window.Telegram.WebApp.HapticFeedback.notificationOccurred('warning');
-        else window.Telegram.WebApp.HapticFeedback.impactOccurred(type);
-      }
+      try {
+        if (window.Telegram?.WebApp?.HapticFeedback) {
+          if (type === 'selection') window.Telegram.WebApp.HapticFeedback.selectionChanged();
+          else if (type === 'success') window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+          else if (type === 'warning') window.Telegram.WebApp.HapticFeedback.notificationOccurred('warning');
+          else window.Telegram.WebApp.HapticFeedback.impactOccurred(type);
+        }
+      } catch (e) {}
+    }
+
+    let toastTimer = null;
+    function showToast(msg, duration = 3000) {
+      const toast = document.getElementById('toast-el');
+      const text = document.getElementById('toast-msg');
+      if (!toast || !text) return;
+      text.innerText = msg;
+      toast.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        toast.classList.remove('show');
+      }, duration);
     }
 
     // State
@@ -712,7 +833,7 @@
     let activeAlarm = null;
     let watchGpsId = null;
 
-    // Load Local Cache
+    // Load Local Cache safely
     try {
       favoritesList = JSON.parse(localStorage.getItem('sg_bus_fav_stops') || '[]');
       serviceFilters = JSON.parse(localStorage.getItem('sg_bus_filters') || '{}');
@@ -723,9 +844,12 @@
 
     // Clock
     function updateClock() {
-      const now = new Date();
-      const timeStr = now.toLocaleTimeString('en-SG', { timeZone: 'Asia/Singapore', hour: '2-digit', minute: '2-digit' });
-      document.getElementById('header-clock').innerText = timeStr + ' SGT';
+      try {
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString('en-SG', { timeZone: 'Asia/Singapore', hour: '2-digit', minute: '2-digit' });
+        const clockEl = document.getElementById('header-clock');
+        if (clockEl) clockEl.innerText = timeStr + ' SGT';
+      } catch (e) {}
     }
     setInterval(updateClock, 1000);
     updateClock();
@@ -733,13 +857,16 @@
     // Leaflet Map Init
     function initMap() {
       if (map) return;
+      const mapEl = document.getElementById('nearby-map');
+      if (!mapEl) return;
+
       map = L.map('nearby-map', { zoomControl: false }).setView([userLat, userLon], 16);
       L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
         attribution: '&copy; OpenStreetMap'
       }).addTo(map);
 
-      // User Marker (Red person icon matching BusLeh)
+      // Commuter Person Avatar Marker
       const userIcon = L.divIcon({
         html: '<div class="user-avatar-marker">&#128694;</div>',
         className: 'user-pin-wrap',
@@ -754,10 +881,13 @@
       haptic('selection');
       currentView = viewName;
       ['fav', 'nearby', 'search', 'mrt'].forEach(v => {
-        document.getElementById('view-' + v).style.display = (v === viewName) ? (v === 'nearby' ? 'flex' : 'block') : 'none';
+        const el = document.getElementById('view-' + v);
+        if (el) el.style.display = (v === viewName) ? (v === 'nearby' ? 'flex' : 'block') : 'none';
         const tabBtn = document.getElementById('tab-' + v);
-        if (v === viewName) tabBtn.classList.add('active');
-        else tabBtn.classList.remove('active');
+        if (tabBtn) {
+          if (v === viewName) tabBtn.classList.add('active');
+          else tabBtn.classList.remove('active');
+        }
       });
 
       if (viewName === 'nearby') {
@@ -769,23 +899,35 @@
 
     // GPS & Nearby Stops
     function initGPS() {
+      initMap();
+      let gpsResolved = false;
+
+      // Timeout fallback: if GPS takes > 2.5s, load default Singapore location so user never hangs
+      const fallbackTimer = setTimeout(() => {
+        if (!gpsResolved && nearbyStopsData.length === 0) {
+          console.log("GPS timeout, fetching default location stops...");
+          fetchNearbyStops();
+        }
+      }, 2500);
+
       if ('geolocation' in navigator) {
         navigator.geolocation.getCurrentPosition(
           pos => {
+            gpsResolved = true;
+            clearTimeout(fallbackTimer);
             userLat = pos.coords.latitude;
             userLon = pos.coords.longitude;
             updateUserPosition(userLat, userLon);
             fetchNearbyStops();
           },
           err => {
-            console.warn('GPS error:', err);
-            // Default Bukit Batok area (similar to screenshot)
-            userLat = 1.3590;
-            userLon = 103.7430;
+            console.warn('GPS error, using default Singapore location:', err);
+            gpsResolved = true;
+            clearTimeout(fallbackTimer);
             updateUserPosition(userLat, userLon);
             fetchNearbyStops();
           },
-          { enableHighAccuracy: true, timeout: 8000 }
+          { enableHighAccuracy: true, timeout: 5000 }
         );
       } else {
         fetchNearbyStops();
@@ -800,6 +942,7 @@
     function recenterUserGPS() {
       haptic('medium');
       if (map) map.setView([userLat, userLon], 16);
+      showToast('📍 Recycled view to current location');
     }
 
     async function fetchNearbyStops() {
@@ -810,13 +953,19 @@
           nearbyStopsData = data.stops;
           renderNearbyMapPins(data.stops);
           renderNearbyList(data.stops);
+        } else {
+          showToast('Unable to load nearby stops');
         }
       } catch (e) {
         console.error('Fetch nearby stops error:', e);
+        const container = document.getElementById('nearby-stops-list');
+        if (container) {
+          container.innerHTML = '<div class="empty-state"><h3>Offline or Network Error</h3><p>Could not fetch nearby bus stops. Please tap refresh.</p></div>';
+        }
       }
     }
 
-    // Render Map Pins with Labels matching SG BusLeh screenshot
+    // Render Map Pins with Labels (Transit Navy / Blue Theme)
     function renderNearbyMapPins(stops) {
       initMap();
       stopMarkers.forEach(m => map.removeLayer(m));
@@ -834,8 +983,8 @@
         const customIcon = L.divIcon({
           html: pinHtml,
           className: 'bus-pin-wrap',
-          iconSize: [120, 36],
-          iconAnchor: [60, 30]
+          iconSize: [130, 38],
+          iconAnchor: [65, 32]
         });
 
         const marker = L.marker([s.latitude, s.longitude], { icon: customIcon }).addTo(map);
@@ -848,21 +997,31 @@
       expandStopInList(stopCode, true);
     }
 
-    // Render Nearby List matching SG BusLeh screenshot
+    // Render Nearby List with clean distance & actions
     function renderNearbyList(stops) {
       const container = document.getElementById('nearby-stops-list');
+      if (!container) return;
       container.innerHTML = '';
 
-      stops.forEach((s, idx) => {
+      if (stops.length === 0) {
+        container.innerHTML = '<div class="empty-state"><h3>No Bus Stops Nearby</h3><p>Try moving closer to a bus stop or search above.</p></div>';
+        return;
+      }
+
+      stops.forEach(s => {
         const isFav = isStopFavorited(s.bus_stop_code);
         
-        // Fix distance calculation (zero NaNkm away)
+        // Accurate distance calculation (no NaN)
         const d = s.distance !== undefined ? s.distance : (s.dist_meters !== undefined ? s.dist_meters : 0);
-        const distText = d < 1000 ? Math.round(d) + 'm' : (d / 1000).toFixed(1) + 'km';
+        const distText = d < 1000 ? Math.round(d) + 'm away' : (d / 1000).toFixed(1) + 'km away';
 
         const row = document.createElement('div');
         row.className = 'stop-item-row';
         row.id = 'stop-row-' + s.bus_stop_code;
+
+        const cleanDesc = (s.description || 'Bus Stop ' + s.bus_stop_code).replace(/'/g, "");
+        const latVal = s.latitude || 0;
+        const lonVal = s.longitude || 0;
 
         row.innerHTML = 
           '<div class="stop-main-header" onclick="toggleStopExpansion(\'' + s.bus_stop_code + '\')">' +
@@ -873,16 +1032,16 @@
             '</div>' +
             '<div class="stop-trailing-group">' +
               '<span class="stop-distance-badge">' + distText + '</span>' +
-              '<button class="kebab-menu-btn" onclick="openStopFilter(event, \'' + s.bus_stop_code + '\', \'' + s.description.replace(/'/g, "") + '\')" title="Filter Buses">&#8942;</button>' +
+              '<button class="kebab-menu-btn" onclick="openStopFilter(event, \'' + s.bus_stop_code + '\', \'' + cleanDesc + '\')" title="Options">&#8942;</button>' +
             '</div>' +
           '</div>' +
           '<div class="bus-arrivals-drawer" id="arrivals-drawer-' + s.bus_stop_code + '">' +
             '<div class="stop-quick-actions">' +
-              '<button class="action-pill-btn ' + (isFav ? 'active' : '') + '" id="fav-btn-' + s.bus_stop_code + '" onclick="toggleFavoriteStop(event, \'' + s.bus_stop_code + '\', \'' + s.description.replace(/'/g, "") + ' (' + s.bus_stop_code + ')\')">' +
+              '<button class="action-pill-btn ' + (isFav ? 'active' : '') + '" id="fav-btn-' + s.bus_stop_code + '" onclick="toggleFavoriteStop(event, \'' + s.bus_stop_code + '\', \'' + cleanDesc + ' (' + s.bus_stop_code + ')\')">' +
                 (isFav ? '&#11088; Saved' : '&#9734; Save Stop') +
               '</button>' +
-              '<button class="action-pill-btn" onclick="openStopFilter(event, \'' + s.bus_stop_code + '\', \'' + s.description.replace(/'/g, "") + '\')">&#9881;&#65039; Filter Buses</button>' +
-              '<button class="action-pill-btn" onclick="armAlightAlarm(event, \'' + s.bus_stop_code + '\', \'' + s.description.replace(/'/g, "") + '\', ' + s.latitude + ', ' + s.longitude + ')">&#128276; Alight Alarm</button>' +
+              '<button class="action-pill-btn" onclick="openStopFilter(event, \'' + s.bus_stop_code + '\', \'' + cleanDesc + '\')">&#9881;&#65039; Filter Buses</button>' +
+              '<button class="action-pill-btn" onclick="armAlightAlarm(event, \'' + s.bus_stop_code + '\', \'' + cleanDesc + '\', ' + latVal + ', ' + lonVal + ')">&#128276; Alight Alarm</button>' +
             '</div>' +
             '<div class="bus-services-list" id="services-list-' + s.bus_stop_code + '">' +
               '<div style="font-size: 11px; color: var(--text-sub); padding: 8px 0;">Loading live arrivals...</div>' +
@@ -923,19 +1082,19 @@
         const res = await fetch(API_BASE + '/api/bus-arrivals?stop=' + stopCode);
         const data = await res.json();
         if (!data.ok || !data.services || data.services.length === 0) {
-          listEl.innerHTML = '<div style="font-size: 11px; color: var(--text-sub); padding: 6px 0;">No active buses operating right now.</div>';
+          listEl.innerHTML = '<div style="font-size: 12px; color: var(--text-sub); padding: 8px 0;">No active buses operating right now.</div>';
           return;
         }
 
         renderServicesWithFilter(listEl, stopCode, data.services);
       } catch (e) {
-        listEl.innerHTML = '<div style="font-size: 11px; color: var(--accent-red); padding: 6px 0;">Failed to fetch live timings.</div>';
+        listEl.innerHTML = '<div style="font-size: 12px; color: var(--text-sub); padding: 8px 0;">Failed to fetch live timings.</div>';
       }
     }
 
     function renderServicesWithFilter(container, stopCode, allServices) {
       container.innerHTML = '';
-      const filterSet = serviceFilters[stopCode]; // Array or undefined
+      const filterSet = serviceFilters[stopCode];
 
       const displayList = (filterSet && filterSet.length > 0)
         ? allServices.filter(s => filterSet.includes(String(s.ServiceNo)))
@@ -943,90 +1102,119 @@
 
       if (displayList.length === 0 && allServices.length > 0) {
         container.innerHTML = 
-          '<div style="font-size: 11px; color: var(--text-sub); padding: 6px 0;">' +
-            'All services hidden by filter. <span style="color: var(--brand-red); font-weight: 700; cursor: pointer;" onclick="clearStopFilter(\'' + stopCode + '\')">Show All (' + allServices.length + ')</span>' +
+          '<div style="font-size: 12px; color: var(--text-sub); padding: 8px 0;">' +
+            'All services hidden by filter. <a href="javascript:void(0)" onclick="openStopFilter(null, \'' + stopCode + '\', \'Bus Stop\')" style="color: var(--brand-primary); font-weight: 700;">Edit Filter</a>' +
           '</div>';
         return;
       }
 
-      displayList.forEach(svc => {
+      displayList.forEach(s => {
+        const p1 = s.NextBus;
+        const p2 = s.NextBus2;
+        const p3 = s.NextBus3;
+
         const card = document.createElement('div');
         card.className = 'service-card';
+
+        const mins1 = formatMins(p1?.EstimatedArrival);
+        const mins2 = formatMins(p2?.EstimatedArrival);
+        const mins3 = formatMins(p3?.EstimatedArrival);
+
+        const loadClass1 = getLoadClass(p1?.Load);
+        const loadClass2 = getLoadClass(p2?.Load);
+        const loadClass3 = getLoadClass(p3?.Load);
+
+        const isWAB = p1?.Feature === 'WAB';
+        const isDD = p1?.Type === 'DD';
+
         card.innerHTML = 
           '<div class="service-card-top">' +
-            '<span class="service-no-badge">' + svc.ServiceNo + '</span>' +
+            '<div style="display: flex; align-items: center; gap: 8px;">' +
+              '<span class="service-no-badge">' + s.ServiceNo + '</span>' +
+              (isDD ? '<span style="font-size: 10px; font-weight: 700; background: rgba(0,0,0,0.06); padding: 2px 6px; border-radius: 4px;">DD</span>' : '') +
+              (isWAB ? '<span style="font-size: 11px;">&#9855;</span>' : '') +
+            '</div>' +
             '<div class="pills-cluster">' +
-              buildTimingPill(svc.NextBus) +
-              buildTimingPill(svc.NextBus2) +
-              buildTimingPill(svc.NextBus3) +
+              '<div class="timing-pill ' + loadClass1 + '">' + mins1 + '</div>' +
+              '<div class="timing-pill ' + loadClass2 + '">' + mins2 + '</div>' +
+              '<div class="timing-pill ' + loadClass3 + '">' + mins3 + '</div>' +
             '</div>' +
           '</div>' +
           '<div class="service-card-bottom">' +
-            '<span>&#8627; to Interchange (' + (svc.NextBus?.DestinationCode || '--') + ')</span>' +
-            '<span>' + (svc.Operator || 'BUS') + '</span>' +
+            '<span>Next: ' + (p1?.EstimatedArrival ? formatTimeOnly(p1.EstimatedArrival) : 'N/A') + '</span>' +
+            '<span>' + (p1?.Load === 'SEA' ? 'Seats Avail' : p1?.Load === 'SDA' ? 'Standing Avail' : p1?.Load === 'LSD' ? 'Crowded' : '') + '</span>' +
           '</div>';
 
         container.appendChild(card);
       });
     }
 
-    function buildTimingPill(bus) {
-      if (!bus || !bus.EstimatedArrival) {
-        return '<span class="timing-pill load-none">--</span>';
-      }
-      const diffMs = new Date(bus.EstimatedArrival).getTime() - Date.now();
-      const diffMins = Math.round(diffMs / 60000);
-      const eta = diffMins <= 0 ? 'Arr' : diffMins + 'm';
-
-      let loadClass = 'load-sea';
-      if (bus.Load === 'SDA') loadClass = 'load-sda';
-      else if (bus.Load === 'LSD') loadClass = 'load-lsd';
-
-      const typeIcon = (bus.Type === 'DD') ? '&#128652;' : (bus.Type === 'BD' ? '&#128654;' : '');
-
-      return '<span class="timing-pill ' + loadClass + '">' + eta + ' ' + typeIcon + '</span>';
+    function formatMins(isoStr) {
+      if (!isoStr) return '-';
+      const diffMs = new Date(isoStr).getTime() - Date.now();
+      const mins = Math.round(diffMs / 60000);
+      if (mins <= 0) return 'Arr';
+      if (mins === 1) return '1m';
+      return mins + 'm';
     }
 
-    // Bus Service Filter Modal (Requirement 5)
-    let currentFilterStopCode = '';
-    let currentFilterAvailableServices = [];
+    function formatTimeOnly(isoStr) {
+      try {
+        return new Date(isoStr).toLocaleTimeString('en-SG', { timeZone: 'Asia/Singapore', hour: '2-digit', minute: '2-digit' });
+      } catch (e) {
+        return '';
+      }
+    }
 
-    async function openStopFilter(event, stopCode, stopDesc) {
+    function getLoadClass(load) {
+      if (load === 'SEA') return 'load-sea';
+      if (load === 'SDA') return 'load-sda';
+      if (load === 'LSD') return 'load-lsd';
+      return 'load-none';
+    }
+
+    // Filter Modal Logic
+    let activeFilterStopCode = null;
+    let activeFilterStopName = null;
+    let modalAvailableServices = [];
+
+    async function openStopFilter(event, stopCode, stopName) {
       if (event) event.stopPropagation();
-      haptic('medium');
-      currentFilterStopCode = stopCode;
+      haptic('selection');
 
-      document.getElementById('filter-modal-title').innerText = 'Filter: ' + stopDesc;
+      activeFilterStopCode = stopCode;
+      activeFilterStopName = stopName;
+      document.getElementById('filter-modal-title').innerText = 'Filter: ' + stopName;
+
       const modalBody = document.getElementById('filter-modal-body');
-      modalBody.innerHTML = '<div style="font-size: 12px; color: var(--text-sub);">Loading bus services at stop...</div>';
+      modalBody.innerHTML = '<div style="padding: 10px; color: var(--text-sub);">Loading bus services...</div>';
       document.getElementById('filter-modal').classList.add('open');
 
       try {
         const res = await fetch(API_BASE + '/api/bus-arrivals?stop=' + stopCode);
         const data = await res.json();
         const services = (data.services || []).map(s => String(s.ServiceNo));
-        currentFilterAvailableServices = services;
+        modalAvailableServices = [...new Set(services)];
 
-        const activeFilter = serviceFilters[stopCode] || services; // by default all checked
+        if (modalAvailableServices.length === 0) {
+          modalBody.innerHTML = '<div style="padding: 10px; color: var(--text-sub);">No active services found for this stop.</div>';
+          return;
+        }
 
+        const currentSavedFilter = serviceFilters[stopCode]; // Array
         modalBody.innerHTML = '';
-        services.forEach(svcNo => {
-          const isChecked = activeFilter.includes(svcNo);
-          const item = document.createElement('div');
+
+        modalAvailableServices.forEach(srv => {
+          const isChecked = !currentSavedFilter || currentSavedFilter.includes(srv);
+          const item = document.createElement('label');
           item.className = 'filter-item';
           item.innerHTML = 
-            '<span style="font-weight: 700; font-size: 14px;">Bus ' + svcNo + '</span>' +
-            '<input type="checkbox" value="' + svcNo + '" ' + (isChecked ? 'checked' : '') + ' style="width: 18px; height: 18px; accent-color: var(--brand-red);">'
-          item.onclick = (e) => {
-            if (e.target.tagName !== 'INPUT') {
-              const cb = item.querySelector('input');
-              cb.checked = !cb.checked;
-            }
-          };
+            '<span>Bus <b>' + srv + '</b></span>' +
+            '<input type="checkbox" value="' + srv + '" ' + (isChecked ? 'checked' : '') + ' style="width: 18px; height: 18px; accent-color: var(--brand-primary);">';
           modalBody.appendChild(item);
         });
       } catch (e) {
-        modalBody.innerHTML = '<div style="color: var(--accent-red);">Failed to load services.</div>';
+        modalBody.innerHTML = '<div style="color: var(--text-sub);">Failed to load services for filtering.</div>';
       }
     }
 
@@ -1034,22 +1222,32 @@
       document.getElementById('filter-modal').classList.remove('open');
     }
 
-    function selectAllFilter(checked) {
+    function selectAllFilter(enableAll) {
       document.querySelectorAll('#filter-modal-body input[type="checkbox"]').forEach(cb => {
-        cb.checked = checked;
+        cb.checked = enableAll;
       });
     }
 
     async function saveFilterModal() {
       haptic('success');
-      const checkedBoxes = document.querySelectorAll('#filter-modal-body input[type="checkbox"]:checked');
-      const selected = Array.from(checkedBoxes).map(cb => cb.value);
+      if (!activeFilterStopCode) return;
 
-      serviceFilters[currentFilterStopCode] = selected;
+      const checked = [];
+      document.querySelectorAll('#filter-modal-body input[type="checkbox"]').forEach(cb => {
+        if (cb.checked) checked.push(cb.value);
+      });
+
+      if (checked.length === modalAvailableServices.length) {
+        delete serviceFilters[activeFilterStopCode];
+      } else {
+        serviceFilters[activeFilterStopCode] = checked;
+      }
+
       localStorage.setItem('sg_bus_filters', JSON.stringify(serviceFilters));
+      closeFilterModal();
 
-      // Sync metadata to Supabase if stop is favorited
-      if (tgUser?.id && isStopFavorited(currentFilterStopCode)) {
+      // Cloud sync filter if stop is favorited
+      if (tgUser?.id && isStopFavorited(activeFilterStopCode)) {
         fetch(API_BASE + '/api/bus-favorites', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1057,55 +1255,52 @@
             userId: tgUser.id,
             action: 'update',
             type: 'bus',
-            value: currentFilterStopCode,
-            metadata: { visible_services: selected }
+            value: activeFilterStopCode,
+            label: activeFilterStopName,
+            metadata: { visible_services: serviceFilters[activeFilterStopCode] || [] }
           })
-        }).catch(err => console.warn('Sync filter metadata error:', err));
+        }).catch(e => console.warn('Filter sync error:', e));
       }
 
-      closeFilterModal();
-      loadArrivalsForStop(currentFilterStopCode);
+      // Re-render
+      loadArrivalsForStop(activeFilterStopCode);
+      showToast('Filters updated successfully');
     }
 
-    function clearStopFilter(stopCode) {
-      delete serviceFilters[stopCode];
-      localStorage.setItem('sg_bus_filters', JSON.stringify(serviceFilters));
-      loadArrivalsForStop(stopCode);
-    }
-
-    // Favorites & Bookmarking (Only Bus Stops per Requirement 4)
+    // Favorites Management (Synced with Supabase)
     function isStopFavorited(stopCode) {
       return favoritesList.some(f => f.value === stopCode);
     }
 
-    async function toggleFavoriteStop(event, stopCode, label) {
+    async function toggleFavoriteStop(event, stopCode, stopLabel) {
       if (event) event.stopPropagation();
       haptic('medium');
 
-      const isFav = isStopFavorited(stopCode);
-      const action = isFav ? 'remove' : 'add';
+      const idx = favoritesList.findIndex(f => f.value === stopCode);
+      const isAdding = (idx === -1);
 
-      if (action === 'add') {
-        favoritesList.unshift({ type: 'bus', value: stopCode, label: label, metadata: { visible_services: serviceFilters[stopCode] || [] } });
+      if (isAdding) {
+        favoritesList.push({ type: 'bus', value: stopCode, label: stopLabel });
+        showToast('⭐ Saved to Favorites');
       } else {
-        favoritesList = favoritesList.filter(f => f.value !== stopCode);
+        favoritesList.splice(idx, 1);
+        showToast('Removed from Favorites');
       }
 
       localStorage.setItem('sg_bus_fav_stops', JSON.stringify(favoritesList));
 
-      // Update button state
-      const btn = document.getElementById('fav-btn-' + stopCode);
-      if (btn) {
-        if (action === 'add') {
-          btn.classList.add('active');
-          btn.innerHTML = '&#11088; Saved';
-        } else {
-          btn.classList.remove('active');
-          btn.innerHTML = '&#9734; Save Stop';
-        }
+      // Update UI buttons
+      const favBtn = document.getElementById('fav-btn-' + stopCode);
+      if (favBtn) {
+        favBtn.className = 'action-pill-btn ' + (isAdding ? 'active' : '');
+        favBtn.innerHTML = isAdding ? '&#11088; Saved' : '&#9734; Save Stop';
       }
 
-      // Sync with Supabase cloud
+      if (currentView === 'fav') {
+        renderFavoritesView();
+      }
+
+      // Cloud sync
       if (tgUser?.id) {
         try {
           await fetch(API_BASE + '/api/bus-favorites', {
@@ -1113,32 +1308,33 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               userId: tgUser.id,
-              action: action,
+              action: isAdding ? 'add' : 'remove',
               type: 'bus',
               value: stopCode,
-              label: label,
+              label: stopLabel,
               metadata: { visible_services: serviceFilters[stopCode] || [] }
             })
           });
         } catch (e) {
-          console.warn('Sync error:', e);
+          console.warn('Fav cloud sync error:', e);
         }
       }
-
-      if (currentView === 'fav') renderFavoritesView();
     }
 
     async function fetchFavoritesCloud() {
       if (!tgUser?.id) return;
-      haptic('medium');
       try {
         const res = await fetch(API_BASE + '/api/bus-favorites?userId=' + tgUser.id);
         const data = await res.json();
         if (data.ok && data.favorites) {
-          favoritesList = data.favorites.filter(f => f.type === 'bus' || f.type === 'bus_stop');
+          favoritesList = data.favorites.map(f => ({
+            type: f.type,
+            value: f.value,
+            label: f.label
+          }));
           localStorage.setItem('sg_bus_fav_stops', JSON.stringify(favoritesList));
-          
-          // Restore service filters from cloud metadata
+
+          // Sync filters from metadata
           data.favorites.forEach(f => {
             if (f.metadata?.visible_services) {
               serviceFilters[f.value] = f.metadata.visible_services;
@@ -1155,6 +1351,8 @@
 
     function renderFavoritesView() {
       const container = document.getElementById('fav-stops-list');
+      if (!container) return;
+
       if (favoritesList.length === 0) {
         container.innerHTML = 
           '<div class="empty-state">' +
@@ -1168,6 +1366,8 @@
       favoritesList.forEach(f => {
         const card = document.createElement('div');
         card.className = 'stop-item-row expanded';
+        const cleanDesc = (f.label || f.value).replace(/'/g, "");
+
         card.innerHTML = 
           '<div class="stop-main-header">' +
             '<div class="stop-details-col">' +
@@ -1175,8 +1375,8 @@
               '<div class="stop-secondary-road">Bus Stop Code: ' + f.value + '</div>' +
             '</div>' +
             '<div class="stop-trailing-group">' +
-              '<button class="action-pill-btn active" onclick="toggleFavoriteStop(event, \'' + f.value + '\', \'' + f.label + '\')">&#11088; Unpin</button>' +
-              '<button class="action-pill-btn" onclick="openStopFilter(event, \'' + f.value + '\', \'' + (f.label || f.value).replace(/'/g, "") + '\')">&#9881;&#65039;</button>' +
+              '<button class="action-pill-btn active" onclick="toggleFavoriteStop(event, \'' + f.value + '\', \'' + cleanDesc + '\')">&#11088; Unpin</button>' +
+              '<button class="action-pill-btn" onclick="openStopFilter(event, \'' + f.value + '\', \'' + cleanDesc + '\')">&#9881;&#65039;</button>' +
             '</div>' +
           '</div>' +
           '<div class="bus-arrivals-drawer" style="display: flex;">' +
@@ -1190,7 +1390,7 @@
       });
     }
 
-    // Alighting Alarm with Telegram Chat Delivery (Requirement 6)
+    // Alighting Alarm with Telegram Chat Delivery
     function armAlightAlarm(event, stopCode, stopName, lat, lon) {
       if (event) event.stopPropagation();
       haptic('warning');
@@ -1231,15 +1431,14 @@
         }).catch(e => console.warn('Alarm sync error:', e));
       }
 
-      alert('🔔 Alighting alarm armed for ' + stopName + '!
-
-A confirmation has also been sent to your Telegram chat.');
+      showToast('🔔 Alarm armed for ' + stopName + '! Confirmation sent to Telegram chat.', 4000);
     }
 
     function onAlarmGPSUpdate(pos) {
       if (!activeAlarm || activeAlarm.triggered) return;
       const dist = computeDistMeters(pos.coords.latitude, pos.coords.longitude, activeAlarm.lat, activeAlarm.lon);
-      document.getElementById('alarm-banner-sub').innerText = Math.round(dist) + 'm away from destination';
+      const subEl = document.getElementById('alarm-banner-sub');
+      if (subEl) subEl.innerText = Math.round(dist) + 'm away from destination';
 
       if (dist <= activeAlarm.thresholdMeters) {
         activeAlarm.triggered = true;
@@ -1266,9 +1465,7 @@ A confirmation has also been sent to your Telegram chat.');
         }).catch(e => console.warn('Trigger sync error:', e));
       }
 
-      alert('🚨 WAKE UP! ARRIVING AT ' + activeAlarm.stopName.toUpperCase() + '!
-
-You are within 500m of your stop.');
+      showToast('🚨 WAKE UP! Arriving at ' + activeAlarm.stopName + ' (within 500m)!', 8000);
       cancelActiveAlarm();
     }
 
@@ -1278,7 +1475,9 @@ You are within 500m of your stop.');
         navigator.geolocation.clearWatch(watchGpsId);
         watchGpsId = null;
       }
-      document.getElementById('alarm-banner').classList.remove('active');
+      const banner = document.getElementById('alarm-banner');
+      if (banner) banner.classList.remove('active');
+      showToast('Alighting alarm cancelled');
     }
 
     function computeDistMeters(lat1, lon1, lat2, lon2) {
@@ -1308,7 +1507,7 @@ You are within 500m of your stop.');
           const data = await res.json();
           renderSearchResults(data.stops || []);
         } catch (e) {
-          area.innerHTML = '<div style="color: var(--accent-red);">Search failed.</div>';
+          area.innerHTML = '<div style="color: var(--text-sub);">Search failed.</div>';
         }
       }, 300);
     }
@@ -1324,6 +1523,10 @@ You are within 500m of your stop.');
         const row = document.createElement('div');
         row.className = 'stop-item-row';
         row.id = 'stop-row-' + s.bus_stop_code;
+        const cleanDesc = (s.description || 'Bus Stop').replace(/'/g, "");
+        const latVal = s.latitude || 0;
+        const lonVal = s.longitude || 0;
+
         row.innerHTML = 
           '<div class="stop-main-header" onclick="toggleStopExpansion(\'' + s.bus_stop_code + '\')">' +
             '<span class="chevron-icon">&#9660;</span>' +
@@ -1334,9 +1537,9 @@ You are within 500m of your stop.');
           '</div>' +
           '<div class="bus-arrivals-drawer" id="arrivals-drawer-' + s.bus_stop_code + '">' +
             '<div class="stop-quick-actions">' +
-              '<button class="action-pill-btn" onclick="toggleFavoriteStop(event, \'' + s.bus_stop_code + '\', \'' + s.description.replace(/'/g, "") + ' (' + s.bus_stop_code + ')\')">&#11088; Save Stop</button>' +
-              '<button class="action-pill-btn" onclick="openStopFilter(event, \'' + s.bus_stop_code + '\', \'' + s.description.replace(/'/g, "") + '\')">&#9881;&#65039; Filter</button>' +
-              '<button class="action-pill-btn" onclick="armAlightAlarm(event, \'' + s.bus_stop_code + '\', \'' + s.description.replace(/'/g, "") + '\', ' + s.latitude + ', ' + s.longitude + ')">&#128276; Alarm</button>' +
+              '<button class="action-pill-btn" onclick="toggleFavoriteStop(event, \'' + s.bus_stop_code + '\', \'' + cleanDesc + ' (' + s.bus_stop_code + ')\')">&#11088; Save Stop</button>' +
+              '<button class="action-pill-btn" onclick="openStopFilter(event, \'' + s.bus_stop_code + '\', \'' + cleanDesc + '\')">&#9881;&#65039; Filter</button>' +
+              '<button class="action-pill-btn" onclick="armAlightAlarm(event, \'' + s.bus_stop_code + '\', \'' + cleanDesc + '\', ' + latVal + ', ' + lonVal + ')">&#128276; Alarm</button>' +
             '</div>' +
             '<div class="bus-services-list" id="services-list-' + s.bus_stop_code + '">' +
               '<div style="font-size: 11px; color: var(--text-sub); padding: 8px 0;">Loading arrivals...</div>' +
@@ -1349,6 +1552,7 @@ You are within 500m of your stop.');
 
     function manualRefresh() {
       haptic('medium');
+      showToast('Refreshing live data...');
       if (currentView === 'nearby') fetchNearbyStops();
       else if (currentView === 'fav') fetchFavoritesCloud();
     }
