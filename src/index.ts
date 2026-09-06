@@ -3283,8 +3283,81 @@ bot.on("message:text", async (ctx) => {
 bot.on("inline_query", async (ctx) => {
   const query = (ctx.inlineQuery.query || "").trim();
   const results: any[] = [];
+  const userId = ctx.from?.id;
 
   try {
+    // 0. User Favorites via Inline Mode (e.g. typing "@LTA_Mall_Bot" or "@LTA_Mall_Bot fav")
+    const isFavQuery = (query === "" || query.toLowerCase() === "fav" || query.toLowerCase() === "favorites");
+    if (isFavQuery && userId) {
+      const favs = await getFavorites(userId);
+      const busFavs = (favs || []).filter((f: any) => f.type === "bus" || f.type === "bus_stop");
+
+      if (busFavs.length > 0) {
+        for (const fav of busFavs.slice(0, 8)) {
+          const stopCode = fav.value;
+          try {
+            const [stopInfo, arrivalData] = await Promise.all([
+              getBusStopByCode(stopCode).catch(() => null),
+              fetchBusArrival(stopCode).catch(() => null)
+            ]);
+            const stopName = fav.label || stopInfo?.description || `Bus Stop ${stopCode}`;
+            const services = arrivalData?.Services || [];
+
+            let arrivalSummary = "No buses currently operating";
+            let fullText = `⭐ <b>${stopName}</b> (<code>${stopCode}</code>)\n`;
+            if (stopInfo?.road_name) fullText += `📍 <i>${stopInfo.road_name}</i>\n\n`;
+
+            if (services.length > 0) {
+              const topArrivals: string[] = [];
+              // Check if user has filtered services
+              const visibleFilter: string[] = fav.metadata?.visible_services || [];
+              const displayServices = visibleFilter.length > 0 
+                ? services.filter((s: any) => visibleFilter.includes(String(s.ServiceNo)))
+                : services;
+
+              (displayServices.length > 0 ? displayServices : services).slice(0, 6).forEach((s: any) => {
+                const next1 = formatMins(s.NextBus?.EstimatedArrival) || "-";
+                const next2 = formatMins(s.NextBus2?.EstimatedArrival);
+                const load1 = getLoadIcon(s.NextBus?.Load);
+                fullText += `• <b>${s.ServiceNo}</b>: <b>${next1}</b> ${load1}`;
+                if (next2) fullText += ` | ${next2}`;
+                fullText += `\n`;
+                if (topArrivals.length < 3) topArrivals.push(`${s.ServiceNo} (${next1})`);
+              });
+              arrivalSummary = topArrivals.join(" • ");
+            } else {
+              fullText += `<i>No active buses running right now.</i>\n`;
+            }
+
+            fullText += `\n🕒 <i>Live SGBusLeh Feed</i>`;
+
+            const kb = new InlineKeyboard()
+              .webApp("📱 Open in BusLeh App", `https://jasontan89.github.io/sg-transport-kaki-bot/bus-app.html?stop=${stopCode}`).row()
+              .url("🤖 Open SG Transport Kaki", "https://t.me/LTA_Mall_Bot");
+
+            results.push({
+              type: "article",
+              id: `fav_inline_${stopCode}`,
+              title: `⭐ ${stopName} (${stopCode})`,
+              description: arrivalSummary,
+              input_message_content: {
+                message_text: fullText,
+                parse_mode: "HTML"
+              },
+              reply_markup: kb
+            });
+          } catch (e) {}
+        }
+
+        if (results.length > 0) {
+          return await ctx.answerInlineQuery(results, {
+            cache_time: 5,
+            is_personal: true
+          });
+        }
+      }
+    }
+
     // 1. Bus Stop by 5-digit code (e.g. "01012", "12039", "bus 12039")
     const busMatch = query.match(/\b\d{5}\b/);
     if (busMatch) {
@@ -4697,6 +4770,7 @@ Deno.serve(async (req) => {
           const type = body.type || "bus";
           const value = String(body.value);
           const label = String(body.label || value);
+          const metadata = body.metadata || {};
 
           if (!userId || !value) {
             return new Response(JSON.stringify({ error: "Missing required fields" }), {
@@ -4705,8 +4779,8 @@ Deno.serve(async (req) => {
             });
           }
 
-          if (action === "add") {
-            await addFavorite(userId, type, value, label);
+          if (action === "add" || action === "update") {
+            await addFavorite(userId, type, value, label, metadata);
           } else if (action === "remove") {
             await removeFavorite(userId, type, value);
           }
@@ -4742,7 +4816,57 @@ Deno.serve(async (req) => {
           }
 
           const alarm = await createAlightingAlarm(userId, chatId, destStopCode, destName, destLat, destLon, thresholdMeters);
+
+          // Deliver confirmation directly into Telegram chat
+          try {
+            const cancelKb = new InlineKeyboard().text("⏹️ Cancel Alight Alarm", "alight_cancel_active");
+            await bot.api.sendMessage(
+              chatId,
+              `🔔 <b>Bus Alighting Alarm Armed!</b>\n\n` +
+              `Destination: <b>${destName}</b> (<code>${destStopCode}</code>)\n` +
+              `Trigger Distance: <b>${thresholdMeters}m</b>\n\n` +
+              `📡 <i>Tracking your bus journey. You will receive real-time alerts in the WebApp and right here in Telegram as you approach your stop!</i>`,
+              { parse_mode: "HTML", reply_markup: cancelKb }
+            );
+          } catch (msgErr) {
+            console.error("Failed to send bot alarm confirmation message:", msgErr);
+          }
+
           return new Response(JSON.stringify({ ok: true, alarm }), {
+            headers: { "content-type": "application/json", "access-control-allow-origin": "*" }
+          });
+        } catch (e: any) {
+          return new Response(JSON.stringify({ error: e.message }), {
+            status: 500,
+            headers: { "content-type": "application/json", "access-control-allow-origin": "*" }
+          });
+        }
+      }
+
+      // Handle Alight Alarm Trigger Wake-up Message to Telegram Chat
+      if (url.pathname.endsWith("/api/bus-alight-trigger") || url.pathname.endsWith("/api/bus/alight/trigger")) {
+        try {
+          const body = await req.json();
+          const chatId = parseInt(body.chatId || body.userId, 10);
+          const destName = String(body.destName || "your destination");
+          const destStopCode = String(body.destStopCode || "");
+          const dist = Math.round(parseFloat(body.distance || "500"));
+
+          if (chatId) {
+            try {
+              await bot.api.sendMessage(
+                chatId,
+                `🚨 <b>WAKE UP! ARRIVING AT YOUR BUS STOP!</b>\n\n` +
+                `You are approximately <b>${dist}m</b> away from <b>${destName}</b> (<code>${destStopCode}</code>)!\n\n` +
+                `🛑 <i>Press the bus stop bell and prepare to alight now!</i>`,
+                { parse_mode: "HTML" }
+              );
+            } catch (triggerMsgErr) {
+              console.error("Failed to send alighting alert message:", triggerMsgErr);
+            }
+          }
+
+          return new Response(JSON.stringify({ ok: true }), {
             headers: { "content-type": "application/json", "access-control-allow-origin": "*" }
           });
         } catch (e: any) {
