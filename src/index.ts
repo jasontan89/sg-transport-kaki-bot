@@ -223,7 +223,7 @@ function getPersistentAppKeyboard() {
   const busAppUrl = "https://jasontan89.github.io/sg-transport-kaki-bot/bus-app.html";
   return new Keyboard()
     .requestLocation("📍 Instant GPS Scan")
-    .webApp("🚌 BusLeh App", busAppUrl).row()
+    .webApp("🚌 SG Transport Kaki", busAppUrl).row()
     .webApp("🗺️ Super-Map App", superMapUrl)
     .text("🚆 MRT Status & Times").row()
     .text("🚗 Carparks & ERP")
@@ -236,7 +236,7 @@ function getMainMenuKeyboard() {
   const superMapUrl = "https://jasontan89.github.io/sg-transport-kaki-bot/super-map.html";
   const busAppUrl = "https://jasontan89.github.io/sg-transport-kaki-bot/bus-app.html";
   return new InlineKeyboard()
-    .webApp("🚌 Launch SG BusLeh WebApp", busAppUrl).row()
+    .webApp("🚌 Launch SG Transport Kaki WebApp", busAppUrl).row()
     .webApp("🗺️ All-in-One Transit Super-Map", superMapUrl).row()
     .text("🚌 Public Transport", "cat_transport")
     .text("🚗 Drivers & Roads", "cat_driving").row()
@@ -516,7 +516,7 @@ async function renderBusArrivals(ctx: any, messageId: number | null, stopCode: s
     const keyboard = new InlineKeyboard()
       .text("🔄 Refresh", `get_bus_${stopCode}`)
       .text(favBtnText, favAction).row()
-      .webApp("📱 Open in BusLeh App", busAppUrl).row()
+      .webApp("📱 Open in SG Transport Kaki", busAppUrl).row()
       .text("🔔 Set Alight Alarm for This Stop", `alight_set_${stopCode}`).row();
 
     if (stopInfo?.latitude && stopInfo?.longitude) {
@@ -2791,21 +2791,22 @@ bot.command(["supermap", "map", "transitmap"], async (ctx) => {
   );
 });
 
-bot.command(["busleh", "busapp"], async (ctx) => {
+bot.command(["bus", "busapp", "kaki", "busleh"], async (ctx) => {
   const busAppUrl = "https://jasontan89.github.io/sg-transport-kaki-bot/bus-app.html";
   const keyboard = new InlineKeyboard()
-    .webApp("🚌 Launch SG BusLeh App", busAppUrl).row()
+    .webApp("🚌 Launch SG Transport Kaki", busAppUrl).row()
     .text("🔙 Back to Main Menu", "menu_main");
 
   await ctx.reply(
-    "🚌 <b>SG BusLeh WebApp Companion 🇸🇬</b>\n\n" +
-    "Your dedicated full-screen bus companion inside Telegram:\n\n" +
-    "• 📍 <b>Nearby Stops</b>: Instant GPS scan for closest stops with walk meters\n" +
+    "🚌 <b>SG Transport Kaki WebApp 🇸🇬</b>\n\n" +
+    "Your dedicated full-screen transit companion inside Telegram:\n\n" +
+    "• 📍 <b>Nearby Stops</b>: Instant GPS scan for closest stops with walking distances\n" +
     "• ⏱️ <b>Live Bus Arrivals</b>: Official LTA countdowns with seats/standing badges\n" +
     "• 🚍 <b>Double Deckers & WAB</b>: Bus vehicle icons & accessibility indicators\n" +
-    "• 🗺️ <b>'Where is my Bus?'</b>: Tap any service to track approaching buses along the route\n" +
-    "• ⭐ <b>Synced Favorites</b>: Pin your daily stops and specific bus services\n" +
-    "• 🔔 <b>Dual Alighting Alarm</b>: In-app sound/haptic chime + background Telegram alert\n\n" +
+    "• ⚙️ <b>Service Filter</b>: Choose which bus lines you want to see for any stop\n" +
+    "• ⭐ <b>Synced Favorites</b>: Pin your daily stops with 2-way cloud sync\n" +
+    "• 🔔 <b>Dual Alighting Alarm</b>: In-app alerts + background Telegram chat wake-up\n" +
+    "• 🚇 <b>MRT Network Map</b>: High-resolution official Singapore train map\n\n" +
     "👇 <i>Tap below to launch the app!</i>",
     { parse_mode: "HTML", reply_markup: keyboard }
   );
@@ -3329,10 +3330,10 @@ bot.on("inline_query", async (ctx) => {
               fullText += `<i>No active buses running right now.</i>\n`;
             }
 
-            fullText += `\n🕒 <i>Live SGBusLeh Feed</i>`;
+            fullText += `\n🕒 <i>Live SG Transport Kaki Feed</i>`;
 
             const kb = new InlineKeyboard()
-              .webApp("📱 Open in BusLeh App", `https://jasontan89.github.io/sg-transport-kaki-bot/bus-app.html?stop=${stopCode}`).row()
+              .webApp("📱 Open in SG Transport Kaki", `https://jasontan89.github.io/sg-transport-kaki-bot/bus-app.html?stop=${stopCode}`).row()
               .url("🤖 Open SG Transport Kaki", "https://t.me/LTA_Mall_Bot");
 
             results.push({
@@ -4701,7 +4702,8 @@ Deno.serve(async (req) => {
       if (url.pathname.endsWith("/api/setup-commands")) {
         try {
           const commands = [
-            { command: "busleh", description: "🚌 Dedicated full-screen SG BusLeh WebApp" },
+            { command: "busapp", description: "🚌 Dedicated full-screen SG Transport Kaki WebApp" },
+            { command: "busleh", description: "🚌 Dedicated full-screen SG Transport Kaki WebApp" },
             { command: "supermap", description: "🗺️ All-in-one live transit radar map (ERP, Cams, Incidents, Taxis, EV)" },
             { command: "status", description: "🚆 Real-time MRT line disruption status" },
             { command: "firstlast", description: "🌙 First & last train timetables" },
