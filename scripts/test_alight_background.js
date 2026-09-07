@@ -52,7 +52,7 @@ async function run() {
   console.log("🚀 TESTING TELEGRAM NATIVE BACKGROUND ALIGHTING ALARM ENGINE");
   console.log("===============================================================\n");
 
-  // Step 1: Arm an alighting alarm via /api/bus-alight
+  // Step 1: Arm an alighting alarm via /api/bus-alight (HTTP API channel)
   console.log("1️⃣ Arming alighting alarm for stop code " + DEST_STOP_CODE + " via /api/bus-alight...");
   const armRes = await fetch(`${FUNCTION_URL}/api/bus-alight`, {
     method: 'POST',
@@ -79,7 +79,6 @@ async function run() {
 
   // Step 2: Simulate Telegram Background Live Location Update (Far away: ~1,100m)
   console.log("\n2️⃣ Simulating locked-phone background GPS update (Distance: ~1,100m > 500m)...");
-  // ~0.01 deg latitude in Singapore is ~1,110 meters
   const farLat = destLat + 0.01;
   const farLon = destLon;
 
@@ -103,7 +102,6 @@ async function run() {
   });
   assert(farUpdateRes.ok, "Live location edited_message processed by webhook successfully");
 
-  // Verify DB telemetry update
   alarm = await getDbAlarm();
   assert(alarm && alarm.status === 'active', "Alarm status remains active while distant");
   assert(alarm && alarm.notified === false, "Alarm NOT triggered yet (distant)");
@@ -111,7 +109,6 @@ async function run() {
 
   // Step 3: Simulate Approaching Stop (Within threshold: ~220m < 500m)
   console.log("\n3️⃣ Simulating arrival at stop (Distance: ~220m <= 500m)...");
-  // ~0.002 deg latitude is ~222 meters
   const closeLat = destLat + 0.002;
   const closeLon = destLon;
 
@@ -135,7 +132,6 @@ async function run() {
   });
   assert(closeUpdateRes.ok, "Threshold arrival edited_message processed by webhook successfully");
 
-  // Verify DB: Alarm triggered and notified!
   alarm = await getDbAlarm();
   assert(alarm && alarm.status === 'triggered', `Alarm status transitioned to: '${alarm?.status}'`);
   assert(alarm && alarm.notified === true, "Alarm marked as notified: true");
@@ -165,12 +161,56 @@ async function run() {
   alarm = await getDbAlarm();
   assert(alarm && alarm.status === 'cancelled', `Alarm status transitioned to cancelled: '${alarm?.status}'`);
 
+  // Step 5: Test native WebApp sendData message channel (message.web_app_data)
+  console.log("\n5️⃣ Testing WebApp native sendData channel (message.web_app_data)...");
+  const webAppDataRes = await fetch(FUNCTION_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      update_id: 200004,
+      message: {
+        message_id: 7779,
+        from: { id: TEST_USER_ID, is_bot: false, first_name: "Tester" },
+        chat: { id: TEST_USER_ID, type: "private" },
+        date: Math.floor(Date.now() / 1000),
+        web_app_data: {
+          data: JSON.stringify({
+            action: "alight_alarm",
+            stopCode: DEST_STOP_CODE,
+            thresholdMeters: 500
+          }),
+          button_text: "🚌 SG Transport Kaki"
+        }
+      }
+    })
+  });
+  assert(webAppDataRes.ok, "WebApp sendData webhook update processed successfully");
+
+  alarm = await getDbAlarm();
+  assert(alarm && alarm.status === 'active', "Alarm armed via WebApp native sendData is active in Supabase");
+  assert(alarm && alarm.dest_bus_stop_code === DEST_STOP_CODE, "Destination bus stop code matches DEST_STOP_CODE");
+
+  // Clean up
+  await fetch(FUNCTION_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      update_id: 200005,
+      callback_query: {
+        id: "cb_dismiss_2",
+        from: { id: TEST_USER_ID, is_bot: false, first_name: "Tester" },
+        message: { message_id: 7780, chat: { id: TEST_USER_ID, type: "private" }, date: Math.floor(Date.now() / 1000) },
+        data: "alight_dismiss"
+      }
+    })
+  });
+
   console.log("\n===============================================================");
   console.log(`📊 FINAL RESULT: ${passed}/${total} PASSED (${Math.round((passed / total) * 100)}%)`);
   console.log("===============================================================");
 
   if (passed === total) {
-    console.log("🎉 ALL TESTS PASSED! Background lock-screen tracking verified.");
+    console.log("🎉 ALL TESTS PASSED! Both API and native sendData channels verified.");
     process.exit(0);
   } else {
     console.error("❌ Some tests failed.");

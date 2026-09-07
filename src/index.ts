@@ -218,9 +218,11 @@ async function safeEditOrSend(ctx: any, text: string, keyboard?: InlineKeyboard,
   }
 }
 
-function getPersistentAppKeyboard() {
+function getPersistentAppKeyboard(userId?: number) {
   const superMapUrl = "https://jasontan89.github.io/sg-transport-kaki-bot/super-map.html";
-  const busAppUrl = "https://jasontan89.github.io/sg-transport-kaki-bot/bus-app.html";
+  const busAppUrl = userId 
+    ? `https://jasontan89.github.io/sg-transport-kaki-bot/bus-app.html?userId=${userId}`
+    : "https://jasontan89.github.io/sg-transport-kaki-bot/bus-app.html";
   return new Keyboard()
     .requestLocation("📍 Instant GPS Scan")
     .webApp("🚌 SG Transport Kaki", busAppUrl).row()
@@ -1967,7 +1969,7 @@ bot.command(["start", "menu"], async (ctx) => {
   await ctx.reply(
     `Hi ${name}! 👋 Welcome to <b>SG Transport Kaki 🇸🇬</b>\n\n` +
     `💡 <i>Quick navigation bar docked below for instant 1-tap checks.</i>`,
-    { reply_markup: getPersistentAppKeyboard(), parse_mode: "HTML" }
+    { reply_markup: getPersistentAppKeyboard(ctx.from?.id), parse_mode: "HTML" }
   );
 
   // 2. Interactive Category Dashboard
@@ -1977,7 +1979,7 @@ bot.command(["start", "menu"], async (ctx) => {
     `• 🚗 <b>Drivers & Roads</b>: ERP Gantries, Live Carparks, Checkpoint Cameras & Traffic Incidents\n` +
     `• 📍 <b>Explore & Nearby</b>: EV Fast Chargers, Vacant Taxis & Bicycle Racks\n\n` +
     `💡 <i>Pro-Tip: Tap <b>📍 Instant GPS Scan</b> below for a 5-in-1 scan of nearby transit!</i>`,
-    { reply_markup: getMainMenuKeyboard(), parse_mode: "HTML" }
+    { reply_markup: getMainMenuKeyboard(ctx.from?.id), parse_mode: "HTML" }
   );
 });
 
@@ -2849,6 +2851,51 @@ bot.on("edited_message:location", async (ctx) => {
   }
 });
 
+bot.on("message:web_app_data", async (ctx) => {
+  try {
+    const rawData = ctx.message?.web_app_data?.data;
+    if (!rawData) return;
+    const data = JSON.parse(rawData);
+
+    if (data.action === "alight_alarm" && data.stopCode) {
+      const userId = ctx.from?.id;
+      const chatId = ctx.chat?.id || userId;
+      if (!userId || !chatId) return;
+
+      let destLat = parseFloat(data.lat);
+      let destLon = parseFloat(data.lon);
+      let destName = data.stopName || data.stopCode;
+      const thresholdMeters = parseInt(data.thresholdMeters, 10) || 500;
+
+      if (isNaN(destLat) || isNaN(destLon) || !destLat || !destLon) {
+        const stop = await getBusStopByCode(data.stopCode).catch(() => null);
+        if (stop?.latitude && stop?.longitude) {
+          destLat = stop.latitude;
+          destLon = stop.longitude;
+          if (!destName || destName === data.stopCode) destName = stop.description;
+        }
+      }
+
+      await createAlightingAlarm(userId, chatId, data.stopCode, destName, destLat, destLon, thresholdMeters);
+
+      const cancelKb = new InlineKeyboard().text("⏹️ Cancel Alight Alarm", "alight_cancel_active");
+      await ctx.reply(
+        `🔔 <b>Bus Alighting Alarm Armed!</b>\n\n` +
+        `📍 <b>Destination:</b> <b>${destName}</b> (<code>${data.stopCode}</code>)\n` +
+        `📏 <b>Alert Radius:</b> <b>${thresholdMeters}m</b>\n\n` +
+        `📡 <b>To enable Background Tracking while phone is locked:</b>\n` +
+        `1️⃣ Tap the paperclip 📎 (or ➕) below in this chat\n` +
+        `2️⃣ Tap <b>Location</b> ➔ <b>Share Live Location</b> (e.g. 15m or 1 hour)\n` +
+        `3️⃣ You can now <b>lock your phone screen</b> and put it in your pocket! 😴\n\n` +
+        `🚨 <i>Telegram will monitor your live journey in the background and send a loud wake-up alert when your bus approaches!</i>`,
+        { parse_mode: "HTML", reply_markup: cancelKb }
+      );
+    }
+  } catch (err) {
+    console.error("Error processing web_app_data:", err);
+  }
+});
+
 bot.on("message:location", async (ctx) => {
   const { latitude, longitude } = ctx.message.location;
   const isLive = Boolean((ctx.message.location as any).live_period);
@@ -3184,7 +3231,7 @@ bot.on("message:text", async (ctx) => {
     return await ctx.reply(
       `Hi ${ctx.from?.first_name ?? "there"}! 👋 Welcome to <b>SG Transport Kaki 🇸🇬</b>\n\n` +
       `What would you like to check today? Select a category below or type directly:`,
-      { reply_markup: getMainMenuKeyboard(), parse_mode: "HTML" }
+      { reply_markup: getMainMenuKeyboard(ctx.from?.id), parse_mode: "HTML" }
     );
   }
 
@@ -3630,7 +3677,7 @@ bot.callbackQuery("menu_main", async (ctx) => {
     `Your all-in-one companion for Singapore buses, trains, driving, carparks, taxis & traffic.\n\n` +
     `Select a category below or type commands directly:\n\n` +
     `💡 <b>Pro-Tip</b>: Tap 📎 <b>Attachment</b> and send your <b>Location</b> for an instant 4-in-1 scan (Bus, Carparks, Taxis, Bikes)!`,
-    getMainMenuKeyboard(),
+    getMainMenuKeyboard(ctx.from?.id),
     "HTML"
   );
 });

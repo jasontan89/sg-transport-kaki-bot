@@ -1028,6 +1028,27 @@
         }
       } catch (e) {}
 
+      // Check window.location.hash for tgWebAppData
+      try {
+        if (window.location.hash) {
+          const hashClean = window.location.hash.replace(/^#/, '');
+          const hashParams = new URLSearchParams(hashClean);
+          const hashAppData = hashParams.get('tgWebAppData');
+          if (hashAppData) {
+            const p = new URLSearchParams(hashAppData);
+            const uStr = p.get('user');
+            if (uStr) {
+              const parsed = JSON.parse(uStr);
+              if (parsed?.id) {
+                tgUser = parsed;
+                localStorage.setItem('sg_tg_user_id', String(parsed.id));
+                return parsed.id;
+              }
+            }
+          }
+        }
+      } catch (e) {}
+
       const urlParams = new URLSearchParams(window.location.search);
       const urlUid = urlParams.get('userId') || urlParams.get('chatId') || urlParams.get('user_id');
       if (urlUid) {
@@ -1726,41 +1747,54 @@
         { enableHighAccuracy: true, maximumAge: 3000 }
       );
 
-      // Deliver to Telegram Chat via Backend API (Requirement 3)
+      // 1. Try Telegram native sendData (available when opened from Keyboard button)
+      // When sendData is called, Telegram natively and immediately closes the WebApp
+      // and sends the payload directly to the bot in the chat!
+      let sendDataSucceeded = false;
+      try {
+        if (window.Telegram?.WebApp?.sendData) {
+          window.Telegram.WebApp.sendData(JSON.stringify({
+            action: 'alight_alarm',
+            stopCode: stopCode,
+            stopName: stopName,
+            lat: destLat,
+            lon: destLon,
+            thresholdMeters: 500
+          }));
+          sendDataSucceeded = true;
+          return; // Telegram closes webapp immediately
+        }
+      } catch (sendDataErr) {
+        console.warn('sendData unavailable (e.g. inline button launch):', sendDataErr);
+      }
+
+      // 2. Deliver to Telegram Chat via Backend API
       const uid = getTelegramUserId();
       if (uid) {
-        try {
-          const res = await fetch(API_BASE + '/api/bus-alight', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              userId: uid,
-              chatId: uid,
-              destStopCode: stopCode,
-              destName: stopName,
-              destLat: destLat,
-              destLon: destLon,
-              thresholdMeters: 500
-            })
-          });
-          const data = await res.json();
-          if (data.ok && data.messageSent) {
-            showToast('🔔 Alarm armed! Opening chat for background Live Location tracking...', 3000);
-            setTimeout(() => {
-              if (window.Telegram?.WebApp?.close) {
-                window.Telegram.WebApp.close();
-              }
-            }, 800);
-          } else {
-            showToast('🔔 Alight alarm armed in-app!', 3500);
-          }
-        } catch (e) {
-          console.warn('Alarm API sync error:', e);
-          showToast('🔔 Alight alarm armed in-app!', 3500);
-        }
-      } else {
-        showToast('🔔 Alight alarm armed in-app! (Open via Telegram bot chat to receive chat alerts)', 4500);
+        fetch(API_BASE + '/api/bus-alight', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: uid,
+            chatId: uid,
+            destStopCode: stopCode,
+            destName: stopName,
+            destLat: destLat,
+            destLon: destLon,
+            thresholdMeters: 500
+          })
+        }).catch(e => console.warn('Alarm API sync error:', e));
       }
+
+      // 3. Guaranteed automatic close into chat
+      showToast('🔔 Alarm armed! Opening chat for background Live Location tracking...', 2500);
+      setTimeout(() => {
+        if (window.Telegram?.WebApp?.close) {
+          try {
+            window.Telegram.WebApp.close();
+          } catch (_) {}
+        }
+      }, 500);
     }
 
     function updateActiveAlarmUI(currentDist = null) {
