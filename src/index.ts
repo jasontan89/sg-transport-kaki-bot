@@ -2901,38 +2901,51 @@ bot.on("message:location", async (ctx) => {
   const isLive = Boolean((ctx.message.location as any).live_period);
   const userId = ctx.from?.id;
 
+  let alarmBanner = "";
+
   // 1. Check active alighting alarm
   if (userId) {
-    const activeAlarm = await getActiveAlightingAlarm(userId);
-    if (activeAlarm && activeAlarm.status === "active") {
-      const dist = calculateDistanceMeters(latitude, longitude, activeAlarm.dest_lat, activeAlarm.dest_lon);
-      if (dist <= activeAlarm.threshold_meters && !activeAlarm.notified) {
-        await updateAlightingTelemetry(userId, latitude, longitude, dist, true);
-        await ctx.reply(
-          `🚨🔔 <b>WAKE UP! ARRIVING AT YOUR BUS STOP!</b> 🔔🚨\n\n` +
-          `📍 <b>Arriving at:</b> <b>${activeAlarm.dest_name}</b> (Stop <code>${activeAlarm.dest_bus_stop_code}</code>)\n` +
-          `📏 <b>Current Distance:</b> ~<b>${Math.round(dist)}m</b> away!\n\n` +
-          `👉 <b>Press the bus bell now and prepare to alight safely!</b> 🚪🚌`,
-          { parse_mode: "HTML" }
-        ).catch(() => null);
-        return;
-      }
+    try {
+      const activeAlarm = await getActiveAlightingAlarm(userId);
+      if (activeAlarm && activeAlarm.status === "active") {
+        const dist = calculateDistanceMeters(latitude, longitude, activeAlarm.dest_lat, activeAlarm.dest_lon);
+        if (dist <= activeAlarm.threshold_meters && !activeAlarm.notified) {
+          await updateAlightingTelemetry(userId, latitude, longitude, dist, true);
+          const dismissKb = new InlineKeyboard()
+            .text("✅ I Have Alighted (Dismiss)", "alight_dismiss").row()
+            .url("🗺️ View Stop on Google Maps", `https://www.google.com/maps/search/?api=1&query=${activeAlarm.dest_lat},${activeAlarm.dest_lon}`);
 
-      await updateAlightingTelemetry(userId, latitude, longitude, dist, false);
+          await ctx.reply(
+            `🚨🔔 <b>WAKE UP! ARRIVING AT YOUR BUS STOP!</b> 🔔🚨\n\n` +
+            `📍 <b>Arriving at:</b> <b>${activeAlarm.dest_name}</b> (Stop <code>${activeAlarm.dest_bus_stop_code}</code>)\n` +
+            `📏 <b>Current Distance:</b> ~<b>${Math.round(dist)}m</b> away!\n\n` +
+            `👉 <b>Press the bus bell now and prepare to alight safely!</b> 🚪🚌`,
+            { parse_mode: "HTML", reply_markup: dismissKb }
+          ).catch(() => null);
+          return;
+        }
 
-      // If user started Live Location sharing specifically:
-      if (isLive) {
-        const cancelKb = new InlineKeyboard().text("⏹️ Cancel Alight Alarm", "alight_cancel");
-        await ctx.reply(
-          `📡 <b>Background Live Journey Tracking Active!</b>\n\n` +
-          `📍 <b>Destination:</b> <b>${activeAlarm.dest_name}</b> (<code>${activeAlarm.dest_bus_stop_code}</code>)\n` +
-          `📏 <b>Distance:</b> ~<b>${Math.round(dist)}m</b> away\n` +
-          `🚨 <b>Alert Radius:</b> <b>${activeAlarm.threshold_meters}m</b>\n\n` +
-          `😴 <i>You can now lock your phone screen and put it in your pocket. Telegram will track your journey in the background and ring you with a loud wake-up alert when you arrive!</i>`,
-          { parse_mode: "HTML", reply_markup: cancelKb }
-        ).catch(() => null);
-        return; // Skip 5-in-1 scan
+        await updateAlightingTelemetry(userId, latitude, longitude, dist, false);
+
+        // If user started Live Location sharing specifically:
+        if (isLive) {
+          const cancelKb = new InlineKeyboard().text("⏹️ Cancel Alight Alarm", "alight_cancel");
+          await ctx.reply(
+            `📡 <b>Background Live Journey Tracking Active!</b>\n\n` +
+            `📍 <b>Destination:</b> <b>${activeAlarm.dest_name}</b> (<code>${activeAlarm.dest_bus_stop_code}</code>)\n` +
+            `📏 <b>Distance:</b> ~<b>${Math.round(dist)}m</b> away\n` +
+            `🚨 <b>Alert Radius:</b> <b>${activeAlarm.threshold_meters}m</b>\n\n` +
+            `😴 <i>You can now lock your phone screen and put it in your pocket. Telegram will track your journey in the background and ring you with a loud wake-up alert when you arrive!</i>`,
+            { parse_mode: "HTML", reply_markup: cancelKb }
+          ).catch(() => null);
+          return; // Skip 5-in-1 scan
+        }
+
+        alarmBanner = `🔔 <b>Active Bus Alarm:</b> ~<b>${Math.round(dist)}m</b> to <b>${activeAlarm.dest_name}</b>\n` +
+          `💡 <i>Tip: For continuous background tracking with your phone locked, tap 📎 ➔ Location ➔ <b>Share Live Location</b> (15m/1h)!</i>\n\n`;
       }
+    } catch (alarmErr) {
+      console.error("Error checking alighting alarm on location:", alarmErr);
     }
   }
 
