@@ -1745,7 +1745,12 @@
           });
           const data = await res.json();
           if (data.ok && data.messageSent) {
-            showToast('🔔 Alight alarm armed! Confirmation sent to your Telegram chat.', 4000);
+            showToast('🔔 Alarm armed! Opening chat for background Live Location tracking...', 3000);
+            setTimeout(() => {
+              if (window.Telegram?.WebApp?.close) {
+                window.Telegram.WebApp.close();
+              }
+            }, 800);
           } else {
             showToast('🔔 Alight alarm armed in-app!', 3500);
           }
